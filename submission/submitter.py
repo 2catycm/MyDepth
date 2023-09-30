@@ -53,6 +53,8 @@ intput_picture_directory = this_directory/'preliminary_a'
 output_picture_directory = this_directory/'result'
 output_picture_directory.mkdir(exist_ok=True, parents=True)
 visualize_picture_directory = this_directory/'vis'
+visualize_picture_directory.mkdir(exist_ok=True, parents=True)
+
 #%%
 do_submit(zoe, intput_picture_directory, output_picture_directory, visualize_picture_directory)
 # %%
