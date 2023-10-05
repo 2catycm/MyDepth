@@ -5,8 +5,6 @@ this_directory = this_file.parent
 import sys
 sys.path.append((this_directory.parent/'ZoeDepth').as_posix())
 sys.path.append((this_directory.parent).as_posix())
-sys.path.append((this_directory.parent/"MyDepth").as_posix())
-project_directory = this_directory.parent
 
 #%%
 import zipfile
@@ -56,16 +54,7 @@ def do_submit_batched(model, input_picture_directory,
     output_zip_path = output_picture_directory.with_suffix('.zip')
     zip_buffer = io.BytesIO()
     with zipfile.ZipFile(zip_buffer, 'w') as zip_file:
-        # transform = transforms.Compose([transforms.ToTensor()])
-        transform = transforms.Compose(
-            [
-                transforms.ToTensor(),
-                transforms.Resize((384, 384)),
-                # transforms.CenterCrop(self.image_size),
-                transforms.Normalize(mean=0.5, std=0.5),
-            ]
-        )
-        
+        transform = transforms.Compose([transforms.ToTensor()])
         dataset = DepthDataset(input_picture_directory, 
                                        transform=transform)
         # 放到gpu的原理：如果在dataset阶段直接放入，显存过大；
@@ -77,11 +66,11 @@ def do_submit_batched(model, input_picture_directory,
         
         # 使用模型进行批量推理
         bar = tqdm.tqdm(dataloader, desc='[Inferencing]')
-        # model.eval()
+        model.eval()
         with torch.no_grad():
             for inputs, paths in bar:
                 inputs = inputs.to(device)
-                depths_batch = model(inputs)
+                depths_batch = model.infer(inputs)
                 
                 for depth, path in zip(depths_batch, paths):
                     file_name = Path(path).stem + '.png'
@@ -106,77 +95,37 @@ def do_submit_batched(model, input_picture_directory,
     #     f.write(zip_buffer.read())
 
 # 直接用linux命令行压缩
-# zip -q -r result.zip result/*
-# 检查文件数量
-# 4301是对的
-# ls -l result/ | wc -l
-# zipdetails result.zip
+# zip -q -r result.zip result/ 
 #%%
-# 加载模型为model
-import models
-from modules.midas.dpt_depth import DPTDepthModel
-# 路径
+import torch
+import torch.nn as nn
+import torch.nn.functional as F
+import torch.optim as optim
 
-pretrained_weights_path = project_directory/"omnidata/omnidata_tools/torch/pretrained_models/omnidata_dpt_depth_v2.ckpt"
+# Zoe_N
+model_zoe_n = torch.hub.load("../ZoeDepth", 
+                            #  "ZoeD_N",
+                             "ZoeD_NK",
+                             source="local",
+                             pretrained=True)
 
-# pretrained_head = project_directory/"MyDepth/runs/1/SimpleMetricHead_60.pth"
-pretrained_head = project_directory/"MyDepth/runs/2/SimpleMetricHead_2826.pth"
-# omni
-device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
-
-map_location = (lambda storage, loc: storage.cuda()) if torch.cuda.is_available() else torch.device('cpu')
-# model = DPTDepthModel(backbone='vitl16_384') # DPT Large
-omni = DPTDepthModel(backbone='vitb_rn50_384')  # DPT Hybrid
-checkpoint = torch.load(pretrained_weights_path, map_location=map_location)
-if 'state_dict' in checkpoint:
-    state_dict = {}
-    for k, v in checkpoint['state_dict'].items():
-        state_dict[k[6:]] = v
-else:
-    state_dict = checkpoint
-omni.load_state_dict(state_dict)
-omni = omni.to(device)
-# head
-head = models.MyNetwork()
-head = head.to(device)
-if pretrained_head is not None:
-    checkpoint_head = torch.load(pretrained_head, map_location=map_location)
-    head.load_state_dict(checkpoint_head,strict=True)
-    
-def model_method(x):
-    print(x.shape)
-    feature_map, output = omni(x) #
-    output = output.squeeze(dim=1)
-    # output = output.clamp(min=0, max=1) #限制0到1之间
-    # output = F.interpolate(output.unsqueeze(0), (512, 512), mode='bicubic').squeeze(0) #双线性插值放大到512x512
-    output = output.clamp(0, 1)
-    relative_depth_map = output
-    
-    result = head(feature_map)           #result的size为4x2，4是batch_size
-    scale, shift = result[:, 0], result[:, 1]
-    scale = scale.unsqueeze(1).unsqueeze(2)  # 扩展 scale 的维度
-    shift = shift.unsqueeze(1).unsqueeze(2)  # 扩展 shift 的维度
-    #print(relative_depth_map.shape, scale.shape)
-    absolute_depth_map = relative_depth_map * scale + shift
-    # return absolute_depth_map*1000 # 比赛要求
-    return absolute_depth_map
-
+device = torch.device('cuda:0' if torch.cuda.is_available() else 'cpu')
+zoe = model_zoe_n.to(device)
+zoe
 # %%
 # 
 intput_picture_directory = this_directory/'preliminary_a'
-# output_picture_directory = this_directory/'result_1000'
 output_picture_directory = this_directory/'result'
 output_picture_directory.mkdir(exist_ok=True, parents=True)
 visualize_picture_directory = this_directory/'vis'
 visualize_picture_directory.mkdir(exist_ok=True, parents=True)
 
 #%%
-do_submit_batched(model_method, intput_picture_directory, 
+# do_submit(zoe, intput_picture_directory, output_picture_directory, visualize_picture_directory)
+do_submit_batched(zoe, intput_picture_directory, 
                   output_picture_directory, 
                 #   batch_size=256, 
-                #   batch_size=64, 
-                  batch_size=32, 
-                #   batch_size=4, 
+                  batch_size=64, 
                   device = device,
                   )
 # %%
