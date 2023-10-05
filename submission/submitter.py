@@ -120,7 +120,10 @@ from modules.midas.dpt_depth import DPTDepthModel
 pretrained_weights_path = project_directory/"omnidata/omnidata_tools/torch/pretrained_models/omnidata_dpt_depth_v2.ckpt"
 
 # pretrained_head = project_directory/"MyDepth/runs/1/SimpleMetricHead_60.pth"
-pretrained_head = project_directory/"MyDepth/runs/2/SimpleMetricHead_2826.pth"
+# pretrained_head = project_directory/"MyDepth/runs/2/SimpleMetricHead_2826.pth"
+
+# 找到最新写入的 checkpoint ls -t | head -1
+pretrained_head = project_directory/"MyDepth/runs/2/SimpleMetricHead_1024.pth"
 # omni
 device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 
@@ -158,14 +161,17 @@ def model_method(x):
     shift = shift.unsqueeze(1).unsqueeze(2)  # 扩展 shift 的维度
     #print(relative_depth_map.shape, scale.shape)
     absolute_depth_map = relative_depth_map * scale + shift
-    # return absolute_depth_map*1000 # 比赛要求
-    return absolute_depth_map
+    
+    print(absolute_depth_map[0].max(), absolute_depth_map[0].min())
+    print(absolute_depth_map.dtype)
+    return absolute_depth_map*1000 # 比赛要求
+    # return absolute_depth_map
 
 # %%
 # 
 intput_picture_directory = this_directory/'preliminary_a'
-# output_picture_directory = this_directory/'result_1000'
-output_picture_directory = this_directory/'result'
+output_picture_directory = this_directory/'result_1000'
+# output_picture_directory = this_directory/'result'
 output_picture_directory.mkdir(exist_ok=True, parents=True)
 visualize_picture_directory = this_directory/'vis'
 visualize_picture_directory.mkdir(exist_ok=True, parents=True)
@@ -174,8 +180,8 @@ visualize_picture_directory.mkdir(exist_ok=True, parents=True)
 do_submit_batched(model_method, intput_picture_directory, 
                   output_picture_directory, 
                 #   batch_size=256, 
-                #   batch_size=64, 
-                  batch_size=32, 
+                  batch_size=64, 
+                #   batch_size=32, 
                 #   batch_size=4, 
                   device = device,
                   )
