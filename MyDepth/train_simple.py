@@ -135,7 +135,7 @@ if pretrained_head is not None:
 # head = nn.DataParallel(head)
 
 criterion = nn.L1Loss()
-criterion = nn.L1Loss()
+# criterion = nn.MSELoss()
 criterion = criterion.to(device)
 # criterion = nn.DataParallel(criterion)
 

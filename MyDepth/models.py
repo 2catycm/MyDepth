@@ -30,6 +30,12 @@ def get_zoe_single_head_with_omni(pretrained_weights_path):
     config.midas_model_type = "DPT_Hybrid"
     model = build_model(config)
     model = model.to('cuda')
+    
+    # 尝试把头也加进去？
+    # state_dict = 
+    # res = model.load_state_dict(state_dict, strict=False)
+    # print(res)
+    
     # map_location = (lambda storage, loc: storage.cuda()) if torch.cuda.is_available() else torch.device('cpu')
     checkpoint = torch.load(pretrained_weights_path,
                             # map_location=map_location
@@ -41,9 +47,11 @@ def get_zoe_single_head_with_omni(pretrained_weights_path):
                 state_dict[k[6:]] = v
     else:
         state_dict = checkpoint
+    
     res = model.core.core.load_state_dict(state_dict, strict=False)
     print(res)
-    set_require_grad(model.core.core, False) # 冻结
+    # set_require_grad(model.core.core, False) # 冻结
+    set_require_grad(model.core.core, True) # 冻结
     return model
 
 def set_require_grad(model, require_grad=False):
