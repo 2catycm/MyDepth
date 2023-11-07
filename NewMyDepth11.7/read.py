@@ -6,27 +6,17 @@ from torch.utils.data import Dataset
 
 class CustomDataset(Dataset):
     def __init__(self, rgb_dir, depth_dir, image_size=384):
-        self.rgb_dir = rgb_dir
-        self.depth_dir = depth_dir
         self.image_size = image_size
-
-        # 获取rgb文件路径
-        rgb_files = []
-        for root, dirs, files in os.walk(rgb_dir):
-            for filename in files:
-                if filename.endswith(".png") or filename.endswith(".PNG"):
-                    file_path = os.path.join(root, filename)
-                    rgb_files.append(file_path)
-        self.rgb_files = sorted(rgb_files)
-
-        # 获取depth文件路径
-        depth_files = []
-        for root, dirs, files in os.walk(depth_dir):
-            for filename in files:
-                if filename.endswith(".png") or filename.endswith(".PNG"):
-                    file_path = os.path.join(root, filename)
-                    depth_files.append(file_path)
-        self.depth_files = sorted(depth_files)
+        rgb_files, depth_files = [], []
+        for files in os.listdir(rgb_dir):
+            for rgb_file in os.listdir(os.path.join(rgb_dir, files)):
+                rgb_file_path = os.path.join(rgb_dir, files, rgb_file)
+                depth_file = rgb_file.replace("rgb", "depth_zbuffer")
+                depth_file_path = os.path.join(depth_dir, files, depth_file)
+                rgb_files.append(rgb_file_path)
+                depth_files.append(depth_file_path)
+        self.rgb_files = rgb_files
+        self.depth_files = depth_files
 
     def __len__(self):
         return len(self.rgb_files)

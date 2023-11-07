@@ -4,8 +4,8 @@ batch_size = 8
 save_steps = 100
 num_epochs = 1
 log_steps = 100
-cuda_num = 0
-experiment_name = f'lr={lr}'
+cuda_num = 2
+experiment_name = f'shuffle_new_read_lr={lr}'
 
 cuda_name = 'cuda:' + str(cuda_num)
 pretrained_weights_path = 'pretrained_models/omnidata_dpt_depth_v2.ckpt'
@@ -55,10 +55,9 @@ warnings.filterwarnings("ignore")
 if not os.path.exists(save_path):
     os.makedirs(save_path)
 
-
 # 加载数据集
 dataset = CustomDataset(dataset_path_rgb, dataset_path_depth, image_size=384)
-train_data_loader = DataLoader(dataset, batch_size=batch_size)
+train_data_loader = DataLoader(dataset, batch_size=batch_size, shuffle=Ture)
 
 # 加载预训练模型
 map_location = (lambda storage, loc: storage.cuda(cuda_num)) if torch.cuda.is_available() else torch.device('cpu')
@@ -137,6 +136,6 @@ for epoch in range(num_epochs):
            writer.add_scalar(experiment_name, loss_sum / save_steps, i_log)
            loss_sum = 0
     torch.save(head.state_dict(), save_path + f'model_final_{epoch_num}_{loss_sum / (i_log % save_steps)}.pth')
-    writer.add_scalar(experiment_name, loss_sum / (i_log % save_steps) / save_steps, i_log)
+    writer.add_scalar(experiment_name, loss_sum / (i_log % save_steps), i_log)
 
 writer.close()
