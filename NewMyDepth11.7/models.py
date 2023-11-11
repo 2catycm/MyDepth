@@ -1,4 +1,5 @@
 import torch.nn as nn
+import torch
 
 class MyNetwork(nn.Module):
     def __init__(self):
@@ -98,4 +99,30 @@ class MyNetwork_large_384(nn.Module):
         x = self.fc(x)
         x = x.permute(0, 3, 1, 2)
         x = nn.functional.interpolate(x, size=[384, 384], mode='nearest')
+        return x
+    
+class ResNet(nn.Module):
+    def __init__(self):
+        super(ResNet, self).__init__()
+        self.name = 'ResNet18'
+        self.resnet = torch.hub.load('pytorch/vision:v0.10.0', 'resnet18', pretrained=True)
+        # 修改最后一层全连接层以适应输出为2维
+        self.resnet.fc = nn.Linear(self.resnet.fc.in_features, 2)
+
+    def forward(self, x):
+        x = self.resnet(x)
+        return x
+    
+class U_Net(nn.Module):
+    def __init__(self):
+        super(U_Net, self).__init__()
+        self.name = 'U_Net'
+        self.conv0 = nn.Conv2d(256, 3, kernel_size=1, stride=1)
+        self.u_net = torch.hub.load('mateuszbuda/brain-segmentation-pytorch', 'unet', in_channels=3, out_channels=1, init_features=32, pretrained=True)
+        self.conv1 = nn.Conv2d(1, 2, kernel_size=1, stride=1)
+
+    def forward(self, x):
+        x = self.conv0(x)
+        x = self.u_net(x)
+        x = self.conv1(x)
         return x
