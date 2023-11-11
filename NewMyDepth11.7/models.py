@@ -74,3 +74,28 @@ class MyNetwork_large_bn(nn.Module):
         x = x.reshape(x.shape[0], -1)
         x = self.fc(x)
         return x
+
+class MyNetwork_large_384(nn.Module):
+    def __init__(self):
+        super(MyNetwork_large_384, self).__init__()
+        self.name = 'MyNetwork_large_384'
+        self.conv1 = nn.Conv2d(256, 256, kernel_size=3, stride=1, padding=1)
+        self.relu1 = nn.ReLU()
+        self.conv2 = nn.Conv2d(256, 256, kernel_size=3, stride=1, padding=1)
+        self.relu2 = nn.ReLU()
+        self.conv3 = nn.Conv2d(256, 256, kernel_size=3, stride=1, padding=1)
+        self.relu3 = nn.ReLU()
+        self.fc = nn.Linear(256, 2)
+
+    def forward(self, x):
+        x = self.conv1(x)
+        x = self.relu1(x)
+        x = self.conv2(x)
+        x = self.relu2(x)
+        x = self.conv3(x)
+        x = self.relu3(x)
+        x = x.permute(0, 2, 3, 1)
+        x = self.fc(x)
+        x = x.permute(0, 3, 1, 2)
+        x = nn.functional.interpolate(x, size=[384, 384], mode='nearest')
+        return x

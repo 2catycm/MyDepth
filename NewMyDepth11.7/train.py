@@ -4,35 +4,37 @@ batch_size = 8
 save_steps = 100
 num_epochs = 1
 log_steps = 100
-cuda_num = 2
-experiment_name = f'shuffle_new_read_lr={lr}'
+cuda_num = 5
+experiment_name = f'large_network_replica'
+seed = 1
 
 cuda_name = 'cuda:' + str(cuda_num)
 pretrained_weights_path = 'pretrained_models/omnidata_dpt_depth_v2.ckpt'
 
-#选择网络结构
+# 选择网络结构
 from models import *
-head = MyNetwork()
+head = MyNetwork_large()
 
-# #数据集replica_fullplus
-# save_path = 'logs/' + 'saves_replica_fullplus/' + experiment_name + '/'
-# dataset_path_rgb = 'replica_fullplus/rgb'
-# dataset_path_depth = 'replica_fullplus/depth_zbuffer'
+# 数据集replica_fullplus
+save_path = 'logs/' + 'saves_replica_fullplus/' + experiment_name + '/'
+dataset_path_rgb = 'replica_fullplus/rgb/replica'
+dataset_path_depth = 'replica_fullplus/depth_zbuffer/replica'
 
-#数据集taskonomy
-save_path = 'logs/' + 'saves_taskonomy/' + experiment_name + '/'
-dataset_path_rgb = 'taskonomy/rgbs'
-dataset_path_depth = 'taskonomy/depths'
+# # 数据集taskonomy
+# save_path = 'logs/' + 'saves_taskonomy/' + experiment_name + '/'
+# dataset_path_rgb = 'taskonomy/rgbs'
+# dataset_path_depth = 'taskonomy/depths'
 
 print('-------------------------------------------')
 print(experiment_name)
 print(cuda_name)
 print(dataset_path_rgb)
 print(head.name)
+print('batch_size:', batch_size)
+print('')
 
 import torch
 import os
-import torch.nn as nn
 import torch.optim as optim
 from read import CustomDataset
 from modules.midas.dpt_depth import DPTDepthModel
@@ -50,14 +52,24 @@ def get(x, model):
     output = output.clamp(0, 1)
     return feature_map, output
 
-torch.manual_seed(1)
+#固定随机数种子
+def seed_torch(seed):
+    np.random.seed(seed)
+    torch.manual_seed(seed)
+    torch.cuda.manual_seed(seed)
+    torch.cuda.manual_seed_all(seed)
+    torch.backends.cudnn.deterministic = True
+    torch.backends.cudnn.benchmark = False
+    torch.backends.cudnn.enabled = False
+
+seed_torch(seed)
 warnings.filterwarnings("ignore")
 if not os.path.exists(save_path):
     os.makedirs(save_path)
 
 # 加载数据集
 dataset = CustomDataset(dataset_path_rgb, dataset_path_depth, image_size=384)
-train_data_loader = DataLoader(dataset, batch_size=batch_size, shuffle=Ture)
+train_data_loader = DataLoader(dataset, batch_size=batch_size, shuffle=True)
 
 # 加载预训练模型
 map_location = (lambda storage, loc: storage.cuda(cuda_num)) if torch.cuda.is_available() else torch.device('cpu')
@@ -73,7 +85,7 @@ else:
 model.load_state_dict(state_dict)
 model = model.to(device)
 
-# 冻结 model中所有参数
+# 冻结model中所有参数
 model.eval()
 for param in model.parameters():
     param.requires_grad = False
@@ -83,7 +95,7 @@ head = head.to(device)
 optimizer = optim.AdamW(head.parameters(), lr=lr)
 
 #tensorboard将训练loss可视化
-writer = SummaryWriter('tensorboard')
+writer = SummaryWriter('tensorboard', filename_suffix='_' + experiment_name)
 
 epoch_num = 0
 for epoch in range(num_epochs):
@@ -92,7 +104,7 @@ for epoch in range(num_epochs):
 
     epoch_loss_sum = 0
     loss_sum = 0
-    inner_bar = tqdm(train_data_loader, colour='yellow', leave=False, position=1, ncols = 150)
+    inner_bar = tqdm(train_data_loader, leave=False, position=1, ncols = 150)
     i_log = 0
     for inputs, ground_truth in inner_bar:
 
@@ -104,10 +116,16 @@ for epoch in range(num_epochs):
 
         # 计算绝对深度图
         result = head(feature_map)  # result的size为4x2，4是batch_size
+        
+        # 输出两个值
         scale, shift = result[:, 0], result[:, 1]
         scale = scale.unsqueeze(1).unsqueeze(2)  # 扩展 scale 的维度
         shift = shift.unsqueeze(1).unsqueeze(2)  # 扩展 shift 的维度
         absolute_depth_map = relative_depth_map * scale + shift  # relative_depth_map的size为torch.Size([4, 512, 512])
+        
+        # #每个点都一个scale和shift
+        # scale, shift = result[:, 0, :, :], result[:, 1, :, :]
+        # absolute_depth_map = relative_depth_map * scale + shift  # relative_depth_map的size为torch.Size([4, 512, 512])
 
         # 保存中间图片
         if i_log % log_steps == 0:
@@ -117,9 +135,7 @@ for epoch in range(num_epochs):
         i_log += 1
 
         valid = (ground_truth > 0.1) & (ground_truth < 20)
-        loss = torch.mean(torch.abs(absolute_depth_map[valid] - ground_truth[valid]) / ground_truth[valid])    # loss1
-        # loss = torch.mean(torch.abs(absolute_depth_map[valid] - ground_truth[valid]))                        # loss2
-        # loss = torch.mean(torch.abs(absolute_depth_map[ground_truth > 0] - ground_truth[ground_truth > 0]))  # loss3
+        loss = torch.mean(torch.abs(absolute_depth_map[valid] - ground_truth[valid]) / ground_truth[valid])   
         
         inner_bar.set_postfix(loss = loss.item())
         epoch_loss_sum += loss.item()
@@ -132,10 +148,10 @@ for epoch in range(num_epochs):
 
         # #保存模型参数
         if i_log % save_steps == 0:
-           torch.save(head.state_dict(), save_path + f'model_{epoch_num}_{i_log}_{loss_sum / save_steps}.pth')
+           torch.save(head.state_dict(), save_path + f'{head.name}_{epoch_num}_{i_log}_{loss_sum / save_steps}.pth')
            writer.add_scalar(experiment_name, loss_sum / save_steps, i_log)
            loss_sum = 0
-    torch.save(head.state_dict(), save_path + f'model_final_{epoch_num}_{loss_sum / (i_log % save_steps)}.pth')
+    torch.save(head.state_dict(), save_path + f'{head.name}_final_{epoch_num}_{loss_sum / (i_log % save_steps)}.pth')
     writer.add_scalar(experiment_name, loss_sum / (i_log % save_steps), i_log)
 
 writer.close()

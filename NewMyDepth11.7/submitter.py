@@ -6,7 +6,7 @@ import sys
 sys.path.append((this_directory.parent).as_posix())
 project_directory = this_directory.parent
 
-intput_picture_directory = this_directory/'test_data_b'
+intput_picture_directory = this_directory/'test_data_a'
 output_picture_directory = this_directory/'output'
 output_picture_directory.mkdir(exist_ok=True, parents=True)
 
@@ -15,7 +15,7 @@ from models import *
 head = MyNetwork_large()
 
 # 选择模型权重
-pretrained_head = 'best_model/model_large_1e-5_loss3.pth'
+pretrained_head = 'best_model/MyNetwork_large_final_1_0.1779169157585677.pth'
 pretrained_weights_path = 'pretrained_models/omnidata_dpt_depth_v2.ckpt'
 
 
@@ -114,6 +114,7 @@ def do_submit_batched(model, input_picture_directory,
 
 # omni
 device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+print(device)
 
 map_location = (lambda storage, loc: storage.cuda()) if torch.cuda.is_available() else torch.device('cpu')
 omni = DPTDepthModel(backbone='vitb_rn50_384')  # DPT Hybrid
@@ -149,7 +150,7 @@ def model_method(x):
     #print(relative_depth_map.shape, scale.shape)
     absolute_depth_map = relative_depth_map * scale + shift
 
-    return absolute_depth_map*1000 # 比赛要求
+    return absolute_depth_map*256 # 比赛要求
 
 
 #%%
