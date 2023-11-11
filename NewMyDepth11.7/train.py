@@ -13,7 +13,9 @@ pretrained_weights_path = 'pretrained_models/omnidata_dpt_depth_v2.ckpt'
 
 # 选择网络结构
 from models import *
-head = MyNetwork_large()
+# head = MyNetwork_large()
+head = ResNet()
+# head = U_Net()
 
 # 数据集replica_fullplus
 save_path = 'logs/' + 'saves_replica_fullplus/' + experiment_name + '/'
