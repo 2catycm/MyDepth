@@ -104,7 +104,7 @@ from peft import LoraConfig, get_peft_model
 config = LoraConfig(
     r=16,  # Lora矩阵的中间维度。 决定了有多少可训练参数
     lora_alpha=16,  # ？。也决定了有多少可训练参数
-    target_modules=["query", "value"],  # 这里指定想要被 Lora 微调的模块
+    target_modules=['qkv'],  # 这里指定想要被 Lora 微调的模块
     lora_dropout=0.1,
     bias="none",  # bias是否冻结
     # modules_to_save=["classifier"], 这里指定不想要被 Lora 微调，但是也不想要冻结，想要全量微调的模块
