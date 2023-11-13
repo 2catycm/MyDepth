@@ -106,7 +106,9 @@ class ResNet(nn.Module):
         super(ResNet, self).__init__()
         self.name = 'ResNet18'
         self.resnet = torch.hub.load('pytorch/vision:v0.10.0', 'resnet18', pretrained=True)
-        # 修改最后一层全连接层以适应输出为2维
+        # Modify the first convolutional layer to accept [8, 256, 12, 12] input
+        self.resnet.conv1 = nn.Conv2d(256, 64, kernel_size=7, stride=2, padding=3, bias=False)
+        # Modify the last fully connected layer to output 2 features
         self.resnet.fc = nn.Linear(self.resnet.fc.in_features, 2)
 
     def forward(self, x):
@@ -117,12 +119,8 @@ class U_Net(nn.Module):
     def __init__(self):
         super(U_Net, self).__init__()
         self.name = 'U_Net'
-        self.conv0 = nn.Conv2d(256, 3, kernel_size=1, stride=1)
-        self.u_net = torch.hub.load('mateuszbuda/brain-segmentation-pytorch', 'unet', in_channels=3, out_channels=1, init_features=32, pretrained=True)
-        self.conv1 = nn.Conv2d(1, 2, kernel_size=1, stride=1)
+        self.u_net = torch.hub.load('mateuszbuda/brain-segmentation-pytorch', 'unet', in_channels=256, out_channels=2, init_features=32, pretrained=True)
 
     def forward(self, x):
-        x = self.conv0(x)
         x = self.u_net(x)
-        x = self.conv1(x)
         return x
