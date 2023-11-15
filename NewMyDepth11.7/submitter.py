@@ -15,7 +15,7 @@ from models import *
 head = MyNetwork_large()
 
 # 选择模型权重
-pretrained_head = 'best_model/MyNetwork_large_final_1_0.1779169157585677.pth'
+pretrained_head = 'best_model/MyNetwork_large_1_2600_0.1744.pth'
 pretrained_weights_path = 'pretrained_models/omnidata_dpt_depth_v2.ckpt'
 
 
@@ -32,6 +32,7 @@ from modules.midas.dpt_depth import DPTDepthModel
 from pathlib import Path
 from PIL import Image
 import tqdm
+import torch.nn.functional as F
 
 # 跳过报错图片
 from PIL import ImageFile
@@ -69,14 +70,13 @@ import numpy as np
 def do_submit_batched(model, input_picture_directory, 
                       output_picture_directory, batch_size=4,
                      device=torch.device('cuda' if torch.cuda.is_available() else 'cpu')):
-
+    
     transform = transforms.Compose(
-        [
-            transforms.ToTensor(),
-            transforms.Resize((384, 384)),
-            # transforms.CenterCrop(self.image_size),
-            transforms.Normalize(mean=0.5, std=0.5),
-        ]
+    [
+        transforms.ToTensor(),
+        transforms.Resize((384, 384)),
+        transforms.Normalize(mean=0.5, std=0.5),
+    ]
     )
     
     dataset = DepthDataset(input_picture_directory, 
@@ -90,7 +90,6 @@ def do_submit_batched(model, input_picture_directory,
     
     # 使用模型进行批量推理
     bar = tqdm.tqdm(dataloader, desc='[Inferencing]')
-    # model.eval()
             
     post_transform = transforms.Resize((720, 1280))
     with torch.no_grad():
@@ -98,11 +97,7 @@ def do_submit_batched(model, input_picture_directory,
             inputs = inputs.to(device)
             depths_batch = model(inputs)
             depths_batch = post_transform(depths_batch)
-            
-            # debug
-            # print(depths_batch[0].max(), depths_batch[0].min())
-            # print(depths_batch.dtype)
-            
+
             for depth, path in zip(depths_batch, paths):
                 file_name = Path(path).stem + '.png'
 
@@ -150,7 +145,7 @@ def model_method(x):
     #print(relative_depth_map.shape, scale.shape)
     absolute_depth_map = relative_depth_map * scale + shift
 
-    return absolute_depth_map*256 # 比赛要求
+    return absolute_depth_map * 1000 # 比赛要求
 
 
 #%%
