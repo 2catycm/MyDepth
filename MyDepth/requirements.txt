@@ -1,0 +1,10 @@
+# timm==0.4.12
+timm==0.6.12
+# https://github.com/Extraltodeus/depthmap2mask/issues/35
+opencv-python==4.8.1.78
+
+# 不精确要求
+tqdm
+scipy~=1.11.3
+matplotlib~=3.8.1
+h5py~=3.10.0

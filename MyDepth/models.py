@@ -7,7 +7,20 @@ import sys
 sys.path.append((project_directory/'omnidata/omnidata_tools/torch').as_posix())
 sys.path.append((project_directory/'ZoeDepth').as_posix())
 #%%
-from MyCommons import *
+from zoedepth.utils.misc import count_parameters, parallelize
+from zoedepth.utils.config import get_config
+from zoedepth.utils.arg_utils import parse_unknown
+from zoedepth.trainers.builder import get_trainer
+from zoedepth.models.builder import build_model
+from zoedepth.data.data_mono import MixedNYUKITTI
+import torch.utils.data.distributed
+import torch.multiprocessing as mp
+import torch
+import numpy as np
+from pprint import pprint
+import argparse
+import os
+#%%
 def get_zoe_single_head_with_omni(pretrained_weights_path):
     config = get_config(
     "zoedepth",  # model_name  允许的choice ['zoedepth', 'zoedepth_nk']
@@ -37,19 +50,21 @@ def get_zoe_single_head_with_omni(pretrained_weights_path):
     # print(res)
     
     # map_location = (lambda storage, loc: storage.cuda()) if torch.cuda.is_available() else torch.device('cpu')
-    checkpoint = torch.load(pretrained_weights_path,
-                            # map_location=map_location
-                            map_location=torch.device('cpu')
-                            )
-    if 'state_dict' in checkpoint:
-            state_dict = {}
-            for k, v in checkpoint['state_dict'].items():
-                state_dict[k[6:]] = v
-    else:
-        state_dict = checkpoint
+
+    # checkpoint = torch.load(pretrained_weights_path,
+    #                         # map_location=map_location
+    #                         map_location=torch.device('cpu')
+    #                         )
+    # if 'state_dict' in checkpoint:
+    #         state_dict = {}
+    #         for k, v in checkpoint['state_dict'].items():
+    #             state_dict[k[6:]] = v
+    # else:
+    #     state_dict = checkpoint
     
-    res = model.core.core.load_state_dict(state_dict, strict=False)
-    print(res)
+    # res = model.core.core.load_state_dict(state_dict, strict=False)
+    # print(res)
+    
     # set_require_grad(model.core.core, False) # 冻结
     set_require_grad(model.core.core, True) # 冻结
     return model

@@ -1,3 +1,12 @@
 [submodule "sam"]
 	path = sam
 	url = https://github.com/davda54/sam.git
+[submodule "ZoeDepth"]
+	path = ZoeDepth
+	url = https://github.com/isl-org/ZoeDepth.git
+[submodule "omnidata"]
+	path = omnidata
+	url = https://gitee.com/yecanming/omnidata.git
+[submodule "MultiObjectiveOptimization"]
+	path = MultiObjectiveOptimization
+	url = https://github.com/isl-org/MultiObjectiveOptimization.git

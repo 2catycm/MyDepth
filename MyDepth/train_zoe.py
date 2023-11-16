@@ -7,7 +7,10 @@ project_directory = this_directory.parent
 import sys
 sys.path.append((project_directory/'omnidata/omnidata_tools/torch').as_posix())
 sys.path.append((project_directory/'ZoeDepth').as_posix())
+sys.path.append((project_directory).as_posix())
 #%%
+import ssl
+ssl._create_default_https_context = ssl._create_unverified_context
 # imports
 import torch
 import torch.nn as nn
@@ -20,10 +23,7 @@ from tqdm import tqdm
 import warnings
 #%%
 # 定义数据路径
-# pretrained_weights_path = './pretrained_models/' + 'omnidata_dpt_depth_v2.ckpt'  # 'omnidata_dpt_depth_v1.ckpt'
-# dataset_path_rgb, dataset_path_depth = 'replica_fullplus/rgb', 'replica_fullplus/depth_zbuffer'
-
-exp_id = 4
+exp_id = "复现实验"
 model_name = "ZoeDepth_Omni"
 running_path = this_directory/f"./runs/{exp_id}"  # 运行时保存的位置
 running_path.mkdir(parents=True, exist_ok=True)
@@ -31,7 +31,8 @@ save_head_to = lambda epoch:(running_path/f"{model_name}_{epoch}.pth").as_posix(
 
 pretrained_weights_path = project_directory/"omnidata/omnidata_tools/torch/pretrained_models/omnidata_dpt_depth_v2.ckpt"
 
-dataset_directory = project_directory/"data/szh/5.跨场景单目深度估计/训练集/replica_fullplus/replica_fullplus/"
+system_data_path = Path("/data/projects/depth").resolve()
+dataset_directory = system_data_path/"5.跨场景单目深度估计/训练集/replica_fullplus/"
 dataset_path_rgb, dataset_path_depth = dataset_directory/'rgb', dataset_directory/'depth_zbuffer'
 
 pretrained_weights_path, dataset_path_rgb, dataset_path_depth = pretrained_weights_path.as_posix(), dataset_path_rgb.as_posix(), dataset_path_depth.as_posix()
@@ -43,7 +44,9 @@ lr = 3e-4
 # batch_size = 128
 # batch_size = 4 # 5G 显存
 # batch_size = int(4 * (80*4/5) * 0.97) # 
-batch_size = int(4 * (80*1/5) * 0.97*1.1) # 
+# single_gpu_memory = 80
+single_gpu_memory = 24
+batch_size = int(4 * (single_gpu_memory*1/5) * 0.97*1.1) # 
 # batch_size = int(4 * (80*1/5) * 0.97*1.1/2) # 
 print(f"batch_size: {batch_size}")
 # save_epoch = 4
@@ -66,7 +69,9 @@ model = model.to(device)
 #%%
 # from
 # criterion = nn.L1Loss()
-criterion = nn.MSELoss()
+# criterion = nn.MSELoss()
+from losses import ValidatedLoss,  CompetitionLoss
+criterion = ValidatedLoss(basic_loss=CompetitionLoss(), lower=0.1, upper=20)
 criterion = criterion.to(device)
 # criterion = nn.DataParallel(criterion)
 import sam.sam as sam
@@ -74,7 +79,7 @@ import sam.sam as sam
 base_optimizer = torch.optim.AdamW
 # optimizer = sam.SAM(model.parameters(), base_optimizer, lr=0.001, momentum=0.9)
 optimizer = sam.SAM(model.parameters(), base_optimizer, 
-                    lr=3e-4)
+                    lr=lr)
 
 
 #%%
@@ -99,20 +104,7 @@ for epoch in bar:
         output = model(images)
         
         pred_depths = output['metric_depth']
-        
-        
-        # debug
-        # print(images.shape, depths_gt.shape, pred_depths.shape)
-        
 
-        # #计算loss
-        # loss = criterion(pred_depths, depths_gt)
-        # # print('\nloss:', loss.item())
-        # inner_bar.set_postfix(loss=loss.item())
-        # #更新参数
-        # optimizer.zero_grad()
-        # loss.backward()
-        # optimizer.step()
         
         # SAM
         # first forward-backward pass
@@ -135,9 +127,7 @@ for epoch in bar:
         if i_log%save_steps == 0:
             torch.save(model.state_dict(), save_head_to(epoch*len(train_data_loader)+i_log))
         i_log+=1
-        
-        
-        
+
     
     # if epoch%save_steps == 0:
     #     torch.save(model.state_dict(), save_head_to(epoch))

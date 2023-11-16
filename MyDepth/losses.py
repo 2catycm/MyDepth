@@ -5,7 +5,26 @@ import torch.nn.functional as F
 import torch.optim as optim
 from torch import Tensor
 
-small_constant = 1e-6
+# valid = (ground_truth > 0.1) & (ground_truth < 20)
+# loss = torch.mean(torch.abs(absolute_depth_map[valid] - ground_truth[valid]) / ground_truth[valid]) 
+        
+# small_constant = 1e-6
+small_constant = 0
+class ValidatedLoss(nn.Module):
+    """ValidatedLoss, """
+    def __init__(self, basic_loss:nn.Module, lower=0.1, upper=20):
+        super().__init__()
+        self.basic_loss = basic_loss
+        self.lower = lower
+        self.upper = upper
+
+    def forward(self, input: Tensor, target: Tensor) -> Tensor:
+        """input 是 y_pred, target 是 y_tru
+        """
+        is_valid = (target > self.lower) & (target < self.upper)
+        valid_input = input[is_valid]
+        valid_target = target[is_valid]
+        return self.basic_loss(valid_input, valid_target)
 class REL(nn.Module):
     """Absolute Relative Error, REL Loss"""
     def __init__(self):
