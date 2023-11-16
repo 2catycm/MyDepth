@@ -63,31 +63,46 @@ class RMSE(nn.Module):
                 )
             )
         )
+# class SI_RMSE(nn.Module):
+#     """Scale Invariant Root Mean Squared Error, si-RMSE"""
+#     def __init__(self):
+#         super().__init__()
+
+#     def forward(self, input: Tensor, target: Tensor) -> Tensor:
+#         shape = input.shape
+#         dim_except_batch = list(range(1, len(shape)))
+#         log_input = torch.log(input+small_constant)
+#         log_target = torch.log(target+small_constant)
+#         return torch.mean(
+#             torch.sqrt(
+#                 torch.mean(
+#                     torch.pow(
+#                         log_input - log_target, 2), 
+#                     dim=dim_except_batch
+#                 )-torch.pow(
+#                     torch.mean(
+#                         log_input - log_target, 
+#                         dim=dim_except_batch
+#                     ), 2
+#                     )
+#                 )
+#             )
+#         # 定义 si rmse 作为损失函数
 class SI_RMSE(nn.Module):
-    """Scale Invariant Root Mean Squared Error, si-RMSE"""
     def __init__(self):
         super().__init__()
 
-    def forward(self, input: Tensor, target: Tensor) -> Tensor:
-        shape = input.shape
-        dim_except_batch = list(range(1, len(shape)))
-        log_input = torch.log(input+small_constant)
-        log_target = torch.log(target+small_constant)
-        return torch.mean(
-            torch.sqrt(
-                torch.mean(
-                    torch.pow(
-                        log_input - log_target, 2), 
-                    dim=dim_except_batch
-                )-torch.pow(
-                    torch.mean(
-                        log_input - log_target, 
-                        dim=dim_except_batch
-                    ), 2
-                    )
-                )
-            )
-        
+    def forward(self, pred, gt):
+        # 取对数，避免负值或零值
+        pred = torch.log(torch.clamp(pred, min=1e-6))
+        gt = torch.log(torch.clamp(gt, min=1e-6))
+        # 计算均方根误差
+        rmse = torch.sqrt(torch.mean((pred - gt) ** 2))
+        # 计算对数深度值的均值
+        mean = torch.mean(pred - gt)
+        # 计算 si rmse
+        si_rmse = torch.sqrt(torch.mean((rmse - mean) ** 2))
+        return si_rmse
 
 class LOG10(nn.Module):
     """Average log10 errors, LOG10"""

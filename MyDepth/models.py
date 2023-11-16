@@ -51,22 +51,36 @@ def get_zoe_single_head_with_omni(pretrained_weights_path):
     
     # map_location = (lambda storage, loc: storage.cuda()) if torch.cuda.is_available() else torch.device('cpu')
 
-    # checkpoint = torch.load(pretrained_weights_path,
-    #                         # map_location=map_location
-    #                         map_location=torch.device('cpu')
-    #                         )
-    # if 'state_dict' in checkpoint:
-    #         state_dict = {}
-    #         for k, v in checkpoint['state_dict'].items():
-    #             state_dict[k[6:]] = v
-    # else:
-    #     state_dict = checkpoint
+    checkpoint = torch.load(pretrained_weights_path,
+                            # map_location=map_location
+                            map_location=torch.device('cpu')
+                            )
+    if 'state_dict' in checkpoint:
+            state_dict = {}
+            for k, v in checkpoint['state_dict'].items():
+                state_dict[k[6:]] = v
+    else:
+        state_dict = checkpoint
+    set_require_grad(model, True) # 启动
+    res = model.core.core.load_state_dict(state_dict, strict=False)
+    print(res)
+    import peft
+    print(f"PEFT version: {peft.__version__}")  # debug用
+    from peft import LoraConfig, get_peft_model
+    config = LoraConfig(
+        r=16,  # Lora矩阵的中间维度。 决定了有多少可训练参数
+        lora_alpha=16,  # ？。也决定了有多少可训练参数
+        target_modules=['qkv'],  # 这里指定想要被 Lora 微调的模块
+        lora_dropout=0.1,
+        bias="none",  # bias是否冻结
+        # modules_to_save=["classifier"], 这里指定不想要被 Lora 微调，但是也不想要冻结，想要全量微调的模块
+    )
+    model.core.core = get_peft_model(model.core.core, config)
+    model.core.core.print_trainable_parameters()  # 检查PEFT使用后模型要被我们训练的参数量
     
-    # res = model.core.core.load_state_dict(state_dict, strict=False)
-    # print(res)
     
     # set_require_grad(model.core.core, False) # 冻结
-    set_require_grad(model.core.core, True) # 冻结
+    # set_require_grad(model.core.core, True) # 冻结
     return model
 
 def set_require_grad(model, require_grad=False):

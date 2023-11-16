@@ -27,37 +27,55 @@ exp_id = "复现实验"
 model_name = "ZoeDepth_Omni"
 running_path = this_directory/f"./runs/{exp_id}"  # 运行时保存的位置
 running_path.mkdir(parents=True, exist_ok=True)
+saves_path = this_directory/f"./saves/{exp_id}"
+saves_path.mkdir(parents=True, exist_ok=True)
+
 save_head_to = lambda epoch:(running_path/f"{model_name}_{epoch}.pth").as_posix()  # head保存的位置
 
 pretrained_weights_path = project_directory/"omnidata/omnidata_tools/torch/pretrained_models/omnidata_dpt_depth_v2.ckpt"
 
 system_data_path = Path("/data/projects/depth").resolve()
-dataset_directory = system_data_path/"5.跨场景单目深度估计/训练集/replica_fullplus/"
-dataset_path_rgb, dataset_path_depth = dataset_directory/'rgb', dataset_directory/'depth_zbuffer'
+
+# dataset_directory = system_data_path/"5.跨场景单目深度估计/训练集/replica_fullplus/"
+# dataset_path_rgb, dataset_path_depth = dataset_directory/'rgb', dataset_directory/'depth_zbuffer'
+
+dataset_directory = system_data_path/"5.跨场景单目深度估计/训练集/taskonomy/"
+dataset_path_rgb, dataset_path_depth = dataset_directory/'rgbs', dataset_directory/'depths'
+
 
 pretrained_weights_path, dataset_path_rgb, dataset_path_depth = pretrained_weights_path.as_posix(), dataset_path_rgb.as_posix(), dataset_path_depth.as_posix()
 pretrained_weights_path, dataset_path_rgb, dataset_path_depth
 #%%
 # 定义训练参数，方便调参
-lr = 3e-4
+# lr = 3e-4
+# lr = 1e-2
+# lr = 1e-3
+lr = 1e-1
+# lr = 0.5
+# lr = 0.9
 # batch_size = 1024
 # batch_size = 128
 # batch_size = 4 # 5G 显存
 # batch_size = int(4 * (80*4/5) * 0.97) # 
 # single_gpu_memory = 80
 single_gpu_memory = 24
-batch_size = int(4 * (single_gpu_memory*1/5) * 0.97*1.1) # 
+n_gpus = 1
+# batch_size = int(n_gpus * (single_gpu_memory*1/5) * 0.97*1.1*24564/14814) # 全量微调?
+batch_size = int(n_gpus * (single_gpu_memory*1/5) * 0.95*1.1*24564/16334*24564/14322) # PEFT?
+# batch_size = int(n_gpus * (single_gpu_memory*1/5) * 0.97*1.1*4) # 
 # batch_size = int(4 * (80*1/5) * 0.97*1.1/2) # 
 print(f"batch_size: {batch_size}")
 # save_epoch = 4
-save_steps = 30
+save_steps = 120*3
+log_steps = 30
 num_epochs = 1
 
 device = torch.device('cuda:0' if torch.cuda.is_available() else 'cpu')
 #%%
 #加载数据集
 dataset = CustomDataset(dataset_path_rgb, dataset_path_depth, image_size=[384, 512])
-train_data_loader = DataLoader(dataset, batch_size=batch_size)
+train_data_loader = DataLoader(dataset, batch_size=batch_size
+                             , shuffle=True)
 
 #%%
 import models
@@ -67,19 +85,25 @@ model = model.to(device)
 # model.core.core = torch.compile(model.core.core)
 
 #%%
+checkpoint = torch.load(running_path/'ZoeDepth_Omni_690.pth')
+model.load_state_dict(checkpoint)
+# model = nn.DataParallel(model)
+#%%
 # from
 # criterion = nn.L1Loss()
 # criterion = nn.MSELoss()
-from losses import ValidatedLoss,  CompetitionLoss
+from losses import ValidatedLoss,  CompetitionLoss, REL
 criterion = ValidatedLoss(basic_loss=CompetitionLoss(), lower=0.1, upper=20)
+# criterion = ValidatedLoss(basic_loss=REL(), lower=0.1, upper=20)
 criterion = criterion.to(device)
 # criterion = nn.DataParallel(criterion)
 import sam.sam as sam
 # optimizer = optim.AdamW(model.parameters(), lr=lr)
-base_optimizer = torch.optim.AdamW
+# base_optimizer = torch.optim.AdamW
+base_optimizer = torch.optim.SGD
 # optimizer = sam.SAM(model.parameters(), base_optimizer, lr=0.001, momentum=0.9)
 optimizer = sam.SAM(model.parameters(), base_optimizer, 
-                    lr=lr)
+                    lr=lr, momentum=0.9)
 
 
 #%%
@@ -126,8 +150,14 @@ for epoch in bar:
         
         if i_log%save_steps == 0:
             torch.save(model.state_dict(), save_head_to(epoch*len(train_data_loader)+i_log))
-        i_log+=1
+        from PIL import Image
+        import matplotlib.pyplot as plt
+        if i_log % log_steps ==0:
+            plt.imsave((saves_path/'absolute_depth_map_test.png').as_posix(), pred_depths[0].detach().cpu().squeeze(),cmap='viridis')
+            plt.imsave((saves_path/'ground_truth_test.png').as_posix(), depths_gt[0].detach().cpu().squeeze(),cmap='viridis')
 
+        i_log+=1
+        
     
     # if epoch%save_steps == 0:
     #     torch.save(model.state_dict(), save_head_to(epoch))

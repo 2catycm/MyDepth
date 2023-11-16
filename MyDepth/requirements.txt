@@ -8,3 +8,6 @@ tqdm
 scipy~=1.11.3
 matplotlib~=3.8.1
 h5py~=3.10.0
+
+peft
+pytorch_lightning
