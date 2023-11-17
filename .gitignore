@@ -1,10 +1,14 @@
 data
 flagged
 log
+logs
 result
 # omnidata
 system
 vis
+*.zip
+*.tfevents.*
+*.png
 # ZoeDepth
 pretrained_models
 

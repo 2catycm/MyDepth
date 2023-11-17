@@ -85,31 +85,21 @@ single_gpu_memory = 24
 n_gpus = 1
 # ZoeDepthOmni
 # batch_size = int(n_gpus * (single_gpu_memory*1/5) * 0.97*1.1*24564/14814) # 全量微调?
-# batch_size = int(
-#     n_gpus * (single_gpu_memory * 1 / 5) * 0.95 * 1.1 * 24564 / 16334 * 24564 / 14322
-# )  # PEFT?
-# ThreeDPT
 batch_size = int(
-    n_gpus * (single_gpu_memory * 1 / 5) * 0.95 * 1.1 * 24564 / 16334 * 24564 / 14322/4 *24564/17530
-)  
+    n_gpus * (single_gpu_memory * 1 / 5) * 0.95 * 1.1 * 24564 / 16334 * 24564 / 14322
+)  # PEFT?
+# ThreeDPT
+# batch_size = int(
+#     n_gpus * (single_gpu_memory * 1 / 5) * 0.95 * 1.1 * 24564 / 16334 * 24564 / 14322/4 *24564/17530
+# )  
 
 # OmniScale （MyNetworkLarge）
 batch_size = int(
     n_gpus * (single_gpu_memory * 1 / 5) * 0.95 * 1.1 * 24564 / 16334 * 24564 / 14322/4 *24564/17530 *24564/2800
 )  
-# 定义训练参数，方便调参
-# lr = 3e-6
-lr = 1e-5
-# lr = 3e-4
-# lr = 1e-3
-# lr = 1e-2
-# lr = 1e-1 # ZoeDepthOmni可用
-# lr = 0.5
-# lr = 0.9
 
-lr = lr * batch_size/8
 
-print(f"batch_size={batch_size}, learning_rate={lr}")
+print(f"batch_size={batch_size}")
 # save_epoch = 4
 save_steps = 120 * 3
 log_steps = 30
@@ -117,3 +107,17 @@ log_steps = 30
 num_epochs = 5
 
 device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
+
+#%%
+import os
+# 新增保存数量控制
+def retain_latest_models(running_path, model_name, num_to_retain=3):
+    # 获取模型文件列表
+    model_files = sorted(running_path.glob(f"{model_name}_*.pth"), key=os.path.getctime)
+
+    # 计算需要删除的文件数量
+    num_to_delete = max(0, len(model_files) - num_to_retain)
+
+    # 删除多余的文件
+    for i in range(num_to_delete):
+        model_files[i].unlink()

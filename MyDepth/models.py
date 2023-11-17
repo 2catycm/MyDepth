@@ -128,23 +128,24 @@ class ThreeDPT(nn.Module):
         # output = relative*(scale*1000/4)+shift*1000/4 # 勉强可以训练
         # output = relative*scale.mean()+shift.mean()
         
-        # scale = scale.clamp(0, 1)
-        # # shift = (shift.clamp(0, 1)-0.5)*2 # 
-        scale=1000*scale
-        shift=1000*shift
+        scale = scale.clamp(0, 1)
+        shift = (shift.clamp(0, 1)-0.5)*2 # 
+        # scale=1000*scale
+        # shift=1000*shift
         # scale = ((scale-scale.min() )/(scale.max()-scale.min()).clamp(min=1e-6)).clamp(min=1e-6)
         # shift = ((shift-shift.min() )/(shift.max()-shift.min()).clamp(min=1e-6)).clamp(min=1e-6)
         # shift = (shift-shift.mean() )/(shift.std().clamp(min=1e-6))
         
         
-        shift = (shift-0.5)*2
+        # shift = (shift-0.5)*2
         output = (relative)*scale*20+shift*0.1 # 先验: 20m是因为赛方提供最远距离是20; 0.1米是大家模型能达到的误差
         # output = (relative)*scale*20*8+shift*0.1*24 # 先验: 20m是因为赛方提供最远距离是20; 0.1米是大家模型能达到的误差
         # output = (relative+shift2*0.2).clamp(0, 1)*scale.mean()*20+shift*0.2 # 先验: 20m是因为赛方提供最远距离是20; 0.1米是大家模型能达到的误差
         # return output.squeeze(dim=1) # 原本维度为 b, 1, w, h
         return dict(
             # metric_depth=output.squeeze(dim=1)
-            metric_depth=output.unsqueeze(dim=1),
+            # metric_depth=output.unsqueeze(dim=1),
+            metric_depth=output,
             rel_depth=relative
         )
     
@@ -194,24 +195,29 @@ def get_zoe_single_head_with_omni(pretrained_weights_path):
     
     # map_location = (lambda storage, loc: storage.cuda()) if torch.cuda.is_available() else torch.device('cpu')
 
-    model.core.core = get_omni(pretrained_weights_path)
+    # model.core.core = get_omni(pretrained_weights_path)
+    checkpoint = torch.load(pretrained_weights_path,
+                            # map_location=map_location
+                            map_location=torch.device('cpu')
+                            )
+    model.core.core.load_state_dict(checkpoint, strict=False)
     
-    # import peft
-    # print(f"PEFT version: {peft.__version__}")  # debug用
-    # from peft import LoraConfig, get_peft_model
-    # config = LoraConfig(
-    #     r=16,  # Lora矩阵的中间维度。 决定了有多少可训练参数
-    #     lora_alpha=16,  # ？。也决定了有多少可训练参数
-    #     target_modules=['qkv'],  # 这里指定想要被 Lora 微调的模块
-    #     lora_dropout=0.1,
-    #     bias="none",  # bias是否冻结
-    #     # modules_to_save=["classifier"], 这里指定不想要被 Lora 微调，但是也不想要冻结，想要全量微调的模块
-    # )
-    # model.core.core = get_peft_model(model.core.core, config)
-    # model.core.core.print_trainable_parameters()  # 检查PEFT使用后模型要被我们训练的参数量
+    import peft
+    print(f"PEFT version: {peft.__version__}")  # debug用
+    from peft import LoraConfig, get_peft_model
+    config = LoraConfig(
+        r=16,  # Lora矩阵的中间维度。 决定了有多少可训练参数
+        lora_alpha=16,  # ？。也决定了有多少可训练参数
+        target_modules=['qkv'],  # 这里指定想要被 Lora 微调的模块
+        lora_dropout=0.1,
+        bias="none",  # bias是否冻结
+        # modules_to_save=["classifier"], 这里指定不想要被 Lora 微调，但是也不想要冻结，想要全量微调的模块
+    )
+    model.core.core = get_peft_model(model.core.core, config)
+    model.core.core.print_trainable_parameters()  # 检查PEFT使用后模型要被我们训练的参数量
     
     
-    set_require_grad(model.core.core, False) # 冻结
+    # set_require_grad(model.core.core, False) # 冻结
     # set_require_grad(model.core.core, True) # 冻结
     return model
 

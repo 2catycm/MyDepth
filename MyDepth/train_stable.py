@@ -132,6 +132,8 @@ for epoch in bar:
             torch.save(
                 model.state_dict(), save_head_to(epoch * len(train_data_loader) + i_log)
             )
+            retain_latest_models(running_path, model_name, num_to_retain=3)
+            
         from PIL import Image
         import matplotlib.pyplot as plt
 
