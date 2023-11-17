@@ -15,6 +15,7 @@ import ssl
 
 ssl._create_default_https_context = ssl._create_unverified_context
 # imports
+import numpy as np
 import torch
 import torch.nn as nn
 import torch.optim as optim
@@ -25,18 +26,45 @@ from torch.utils.data import DataLoader
 from tqdm import tqdm
 import warnings
 
+
+# 固定随机数种子
+def seed_torch(seed):
+    np.random.seed(seed)
+    torch.manual_seed(seed)
+    torch.cuda.manual_seed(seed)
+    torch.cuda.manual_seed_all(seed)
+    torch.backends.cudnn.deterministic = True
+    torch.backends.cudnn.benchmark = False
+    torch.backends.cudnn.enabled = False
+
+
+seed = 114514
+seed_torch(seed)
+
 # %%
 # 定义数据路径
-exp_id = "复现实验"
-model_name = "ZoeDepth_Omni"
+# exp_id = "复现实验"
+# exp_id = "不使用PEFT-不使用lr_schedule-仅训练两轮"
+exp_id = "使用lr_schedule-训练5轮-双数据集"
+# model_name = "ZoeDepth_Omni"
+model_name = "ThreeDPT"
 system_data_path = Path("/data/projects/depth").resolve()
 
 # running_path = this_directory/f"./runs/{exp_id}"  # 运行时保存的位置
 running_path = system_data_path / f"./runs/{exp_id}"  # 运行时保存的位置
 if not running_path.is_symlink():  # 如果是软连接，也是存在
     running_path.mkdir(parents=True, exist_ok=True)
-saves_path = this_directory / f"./saves/{exp_id}"
-saves_path.mkdir(parents=True, exist_ok=True)
+
+logs_path = this_directory / f"./logs/{exp_id}"
+logs_path.mkdir(parents=True, exist_ok=True)
+
+from torch.utils.tensorboard import SummaryWriter
+# from tensorboardX import SummaryWriter
+writer = SummaryWriter(
+    logs_path/'tensorboard',
+)
+#    filename_suffix='_' + exp_id)
+
 
 save_head_to = lambda epoch: (
     running_path / f"{model_name}_{epoch}.pth"
@@ -61,37 +89,49 @@ dataset_path_rgb2, dataset_path_depth2 = (
 )
 
 
-pretrained_weights_path, dataset_path_rgb1, dataset_path_depth1, dataset_path_rgb2, dataset_path_depth2 = (
+(
+    pretrained_weights_path,
+    dataset_path_rgb1,
+    dataset_path_depth1,
+    dataset_path_rgb2,
+    dataset_path_depth2,
+) = (
     pretrained_weights_path.as_posix(),
-    dataset_path_rgb1.as_posix(), dataset_path_depth1.as_posix(),
-    dataset_path_rgb2.as_posix(), dataset_path_depth2.as_posix(),
+    dataset_path_rgb1.as_posix(),
+    dataset_path_depth1.as_posix(),
+    dataset_path_rgb2.as_posix(),
+    dataset_path_depth2.as_posix(),
 )
 # pretrained_weights_path, dataset_path_rgb, dataset_path_depth
 # %%
 # 定义训练参数，方便调参
+lr = 3e-6
 # lr = 3e-4
-# lr = 1e-2
 # lr = 1e-3
-lr = 1e-1
+# lr = 1e-2
+# lr = 1e-1 # ZoeDepthOmni可用
 # lr = 0.5
 # lr = 0.9
-# batch_size = 1024
-# batch_size = 128
+
 # batch_size = 4 # 5G 显存
-# batch_size = int(4 * (80*4/5) * 0.97) #
 # single_gpu_memory = 80
 single_gpu_memory = 24
 n_gpus = 1
+# ZoeDepthOmni
 # batch_size = int(n_gpus * (single_gpu_memory*1/5) * 0.97*1.1*24564/14814) # 全量微调?
+# batch_size = int(
+#     n_gpus * (single_gpu_memory * 1 / 5) * 0.95 * 1.1 * 24564 / 16334 * 24564 / 14322
+# )  # PEFT?
+# ThreeDPT
 batch_size = int(
-    n_gpus * (single_gpu_memory * 1 / 5) * 0.95 * 1.1 * 24564 / 16334 * 24564 / 14322
-)  # PEFT?
-# batch_size = int(n_gpus * (single_gpu_memory*1/5) * 0.97*1.1*4) #
-# batch_size = int(4 * (80*1/5) * 0.97*1.1/2) #
+    n_gpus * (single_gpu_memory * 1 / 5) * 0.95 * 1.1 * 24564 / 16334 * 24564 / 14322/4 *24564/17530
+)  
+
 print(f"batch_size: {batch_size}")
 # save_epoch = 4
 save_steps = 120 * 3
 log_steps = 30
+# num_epochs = 2
 num_epochs = 5
 
 device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
@@ -101,21 +141,22 @@ from torch.utils.data import DataLoader, ConcatDataset
 
 dataset1 = CustomDataset(dataset_path_rgb1, dataset_path_depth1, image_size=[384, 512])
 dataset2 = CustomDataset(dataset_path_rgb2, dataset_path_depth2, image_size=[384, 512])
-dataset = dataset2  # taskonomy
+# dataset = dataset2  # taskonomy
 dataset = ConcatDataset([dataset1, dataset2])
 train_data_loader = DataLoader(dataset, batch_size=batch_size, shuffle=True)
 
 # %%
 import models
 
-model = models.get_zoe_single_head_with_omni(pretrained_weights_path)
+# model = models.get_zoe_single_head_with_omni(pretrained_weights_path)
+model = models.ThreeDPT(pretrained_weights_path)
 model = model.to(device)
 # model = nn.DataParallel(model)
 # model.core.core = torch.compile(model.core.core)
 
 # %%
-checkpoint = torch.load("/data/projects/depth/runs/复现实验" + "/ZoeDepth_Omni_660.pth")
-model.load_state_dict(checkpoint)
+# checkpoint = torch.load("/data/projects/depth/runs/复现实验" + "/ZoeDepth_Omni_660.pth")
+# model.load_state_dict(checkpoint)
 # model = nn.DataParallel(model)
 # %%
 # from
@@ -134,8 +175,10 @@ import sam.sam as sam
 base_optimizer = torch.optim.SGD
 # optimizer = sam.SAM(model.parameters(), base_optimizer, lr=0.001, momentum=0.9)
 optimizer = sam.SAM(model.parameters(), base_optimizer, lr=lr, momentum=0.9)
-
-
+from torch.optim.lr_scheduler  import ExponentialLR, MultiStepLR, CosineAnnealingWarmRestarts
+# scheduler1 = ExponentialLR(optimizer, gamma=0.9)
+# scheduler2 = MultiStepLR(optimizer, milestones=[30,80], gamma=0.1)
+scheduler = CosineAnnealingWarmRestarts(optimizer, T_0=10, T_mult=2, eta_min=1e-5)
 # %%
 # 训练网络
 # def post_process(output):
@@ -176,6 +219,7 @@ for epoch in bar:
         )
         epoch_loss_sum += loss.item()
         bar.set_postfix(Epoch=epoch, loss=epoch_loss_sum / (i_log + 1))
+        writer.add_scalar(f"loss_{exp_id}", epoch_loss_sum / (i_log + 1), epoch * len(train_data_loader) + i_log)
 
         # second forward-backward pass
         criterion(
@@ -192,19 +236,28 @@ for epoch in bar:
 
         if i_log % log_steps == 0:
             plt.imsave(
-                (saves_path / "absolute_depth_map_test.png").as_posix(),
+                (logs_path / "absolute_depth_map_test.png").as_posix(),
                 pred_depths[0].detach().cpu().squeeze(),
                 cmap="viridis",
             )
             plt.imsave(
-                (saves_path / "ground_truth_test.png").as_posix(),
+                (logs_path / "ground_truth_test.png").as_posix(),
                 depths_gt[0].detach().cpu().squeeze(),
                 cmap="viridis",
             )
+            from scipy import stats
+            print(stats.describe(pred_depths[0].detach().cpu().squeeze().reshape(-1).numpy()))
+            print(stats.describe(depths_gt[0].detach().cpu().squeeze().reshape(-1).numpy()))
+
 
         i_log += 1
+        scheduler.step()
+        writer.add_scalar(f"learning_rate_{exp_id}", epoch_loss_sum / (i_log + 1), epoch * len(train_data_loader) + i_log)
 
     # if epoch%save_steps == 0:
     #     torch.save(model.state_dict(), save_head_to(epoch))
+    # scheduler1.step()
+    # scheduler2.step()
 
 # %%
+writer.close()

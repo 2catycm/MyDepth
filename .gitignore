@@ -1,10 +1,12 @@
 data
 flagged
 log
-omnidata
+result
+# omnidata
 system
 vis
-ZoeDepth
+# ZoeDepth
+pretrained_models
 
 submission/preliminary_a
 submission/result

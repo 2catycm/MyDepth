@@ -2,6 +2,8 @@ import os
 from PIL import Image
 from torchvision import transforms
 from torch.utils.data import Dataset
+import cv2
+
 
 class CustomDataset(Dataset):
     def __init__(self, rgb_dir, depth_dir, image_size=384):
@@ -65,8 +67,15 @@ class CustomDataset(Dataset):
         return img_tensor
 
     def read_depth_file(self, file_path, transform):
-        depth = Image.open(file_path)
-        depth_tensor = transform(depth)
-        depth_tensor[depth_tensor > 23000] = 0
-        depth_tensor = depth_tensor / 512
-        return depth_tensor
+        # depth = Image.open(file_path)
+        # depth = cv2.imread(file_path, -1)
+        # depth_tensor = transform(depth)
+        # depth_tensor[depth_tensor > 23000] = 0
+        # depth_tensor = depth_tensor / 512
+        # return depth_tensor
+        depth = cv2.imread(file_path, -1)
+        depth[depth > 23000] = 0
+        depth = depth / 512
+        depth = Image.fromarray(depth)
+        depth = transform(depth).squeeze(0)
+        return depth

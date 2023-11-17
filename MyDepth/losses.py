@@ -31,7 +31,7 @@ class REL(nn.Module):
         super(REL, self).__init__()
 
     def forward(self, input: Tensor, target: Tensor) -> Tensor:
-        """input 是 y_pred, target 是 y_tru
+        """input 是 y_pred, target 是 y_true
         """
         # return F.l1_loss(input, target, reduction=self.reduction)
         # 比如说 shape = (b, 1, w, h)
@@ -117,7 +117,9 @@ class CompetitionLoss(nn.Module):
         self.si_rmse = SI_RMSE()
 
     def forward(self, input: Tensor, target: Tensor) -> Tensor:
-        return 0.5*self.rel(input, target) + 0.5*self.si_rmse(input, target)
+        # scale = 1000
+        scale = 1
+        return 0.5*self.rel(input*scale, target*scale) + 0.5*self.si_rmse(input*scale, target*scale)
 
 
 #%%

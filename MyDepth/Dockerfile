@@ -7,4 +7,4 @@ COPY ./requirements.txt ./requirements.txt
 COPY ./test.sh ./test.sh
 COPY ./train.sh ./train.sh
 
-RUN pip install -r ./requirements.txt
+RUN pip install -r ./requirements.txt -i https://pypi.tuna.tsinghua.edu.cn/simple  
