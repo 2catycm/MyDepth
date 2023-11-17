@@ -5,7 +5,7 @@ from boilerplate import *
 input_picture_directory = system_data_path/'5.跨场景单目深度估计/决赛数据/final_a'
 output_picture_directory = project_directory/'result'
 output_picture_directory.mkdir(exist_ok=True, parents=True)
-
+#%%
 # 选择网络结构
 # from models import *
 import models
@@ -113,4 +113,38 @@ do_submit_batched(model, input_picture_directory,
                    batch_size=batch_size, 
                   device = device,
                   )
+# %%
+# 直接用linux命令行压缩
+# zip -q -r result.zip result/*
+# 检查文件数量
+# 4301是对的
+# ls -l result/ | wc -l
+# zipdetails result.zip 这个命令没用
+# zipinfo result.zip 挺好的命令
+
+#%%
+import os
+from zipfile import ZipFile
+import zipfile
+import tqdm
+def zip_folder(folder_path, output_zip):
+    # 打开一个 Zip 文件，如果不存在则创建
+    with ZipFile(output_zip, 'w', 
+                #  compression=zipfile.ZIP_LZMA, 
+                 compression=zipfile.ZIP_DEFLATED, # 比较快, 而且压缩地很好。
+                 compresslevel=9) as zipf: # 9是压缩地最小的
+        
+        # 遍历文件夹中的所有文件
+        for root, _, files in os.walk(folder_path):
+            bar = tqdm.tqdm(files)
+            for file in bar:
+                file_path = os.path.join(root, file)
+
+                # 将文件添加到 Zip 文件中，压缩文件内部没有层次结构
+                zipf.write(file_path, os.path.basename(file_path))
+
+
+# 打包文件夹
+zip_folder(output_picture_directory.as_posix(), output_picture_directory.parent/f"{output_picture_directory.name}.zip")
+
 # %%
