@@ -24,3 +24,16 @@ tensorboard==2.14.0
 imageio
 
 ipykernel
+
+# 为了dino
+# mmcv==2.1.0 -f https://download.openmmlab.com/mmcv/dist/cu121/torch2.1/index.html
+omegaconf
+fvcore
+iopath
+submitit
+--extra-index-url https://pypi.nvidia.com
+cuml-cu11
+# xformers==0.0.18
+xformers
+# 
+mmcv-full==1.5.0

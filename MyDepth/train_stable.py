@@ -1,13 +1,29 @@
 from boilerplate import *
+num_epochs = 2
+# 定义训练参数，方便调参
+# lr = 3e-6 # 速度慢但是一定可以降低， 2%到达0.76
+# lr = 1e-5 # OmniScale用
+lr = 3e-4 # ThreeDPT 可以下降， 很快到0.2
+# lr = 1e-3
+# lr = 1e-2
+
+# lr = 1e-1 # ThreeDPT 卡在0.9降不下去，在边缘走
+# lr = 1e-1 # ZoeDepthOmni可用
+# lr = 0.5
+# lr = 0.9
+
+lr = lr * batch_size/8
+print(f"learning_rate={lr}")
 # %%
 # 定义数据路径
 # exp_id = "复现实验"
 # exp_id = "不使用PEFT-不使用lr_schedule-仅训练两轮"
-exp_id = "复现初赛"
+# exp_id = "复现初赛"
+exp_id = "3DPT稳定版"
 # model_name = "ZoeDepth_Omni"
 # model_name = "ThreeDPT"
-# model_name = "ThreeDPT"
-model_name = "OmniScale"
+model_name = "ThreeDPT"
+# model_name = "OmniScale"
 
 # running_path = this_directory/f"./runs/{exp_id}"  # 运行时保存的位置
 running_path = system_data_path / f"./runs/{exp_id}"  # 运行时保存的位置
@@ -33,8 +49,8 @@ save_head_to = lambda epoch: (
 # 加载数据集
 from torch.utils.data import DataLoader, ConcatDataset
 
-# model_require_input_image_size = [384, 512]
-model_require_input_image_size = [384, 384]
+model_require_input_image_size = [384, 512]
+# model_require_input_image_size = [384, 384]
 
 dataset1 = CustomDataset(dataset_path_rgb1, dataset_path_depth1, image_size=model_require_input_image_size)
 dataset2 = CustomDataset(dataset_path_rgb2, dataset_path_depth2, image_size=model_require_input_image_size)
@@ -46,8 +62,8 @@ train_data_loader = DataLoader(dataset, batch_size=batch_size, shuffle=True)
 import models
 
 # model = models.get_zoe_single_head_with_omni(pretrained_weights_path)
-# model = models.ThreeDPT(pretrained_weights_path)
-model = models.OmniScale(pretrained_weights_path, head=models.MyNetwork_large())
+model = models.ThreeDPT(pretrained_weights_path)
+# model = models.OmniScale(pretrained_weights_path, head=models.MyNetwork_large())
 model = model.to(device)
 # model = nn.DataParallel(model)
 # model.core.core = torch.compile(model.core.core)
@@ -73,10 +89,10 @@ optimizer = optim.AdamW(model.parameters(), lr=lr)
 # base_optimizer = torch.optim.SGD/
 # optimizer = sam.SAM(model.parameters(), base_optimizer, lr=0.001, momentum=0.9)
 # optimizer = sam.SAM(model.parameters(), base_optimizer, lr=lr, momentum=0.9)
-# from torch.optim.lr_scheduler  import ExponentialLR, MultiStepLR, CosineAnnealingWarmRestarts
+from torch.optim.lr_scheduler  import ExponentialLR, MultiStepLR, CosineAnnealingWarmRestarts
 # scheduler1 = ExponentialLR(optimizer, gamma=0.9)
 # scheduler2 = MultiStepLR(optimizer, milestones=[30,80], gamma=0.1)
-# scheduler = CosineAnnealingWarmRestarts(optimizer, T_0=10, T_mult=2, eta_min=1e-5)
+scheduler = CosineAnnealingWarmRestarts(optimizer, T_0=10, T_mult=2, eta_min=1e-5)
 # %%
 # 训练网络
 # def post_process(output):
@@ -132,7 +148,7 @@ for epoch in bar:
             torch.save(
                 model.state_dict(), save_head_to(epoch * len(train_data_loader) + i_log)
             )
-            retain_latest_models(running_path, model_name, num_to_retain=3)
+            retain_latest_models(running_path, model_name, num_to_retain=8)
             
         from PIL import Image
         import matplotlib.pyplot as plt
@@ -154,7 +170,7 @@ for epoch in bar:
 
 
         i_log += 1
-        # scheduler.step()
+        scheduler.step()
         # writer.add_scalar(f"learning_rate_{exp_id}", epoch_loss_sum / (i_log + 1), epoch * len(train_data_loader) + i_log)
 
     # if epoch%save_steps == 0:

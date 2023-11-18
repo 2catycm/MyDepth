@@ -85,18 +85,18 @@ single_gpu_memory = 24
 n_gpus = 1
 # ZoeDepthOmni
 # batch_size = int(n_gpus * (single_gpu_memory*1/5) * 0.97*1.1*24564/14814) # 全量微调?
-batch_size = int(
-    n_gpus * (single_gpu_memory * 1 / 5) * 0.95 * 1.1 * 24564 / 16334 * 24564 / 14322
-)  # PEFT?
-# ThreeDPT
 # batch_size = int(
-#     n_gpus * (single_gpu_memory * 1 / 5) * 0.95 * 1.1 * 24564 / 16334 * 24564 / 14322/4 *24564/17530
-# )  
+#     n_gpus * (single_gpu_memory * 1 / 5) * 0.95 * 1.1 * 24564 / 16334 * 24564 / 14322
+# )  # PEFT?
+# ThreeDPT
+batch_size = int(
+    n_gpus * (single_gpu_memory * 1 / 5) * 0.95 * 1.1 * 24564 / 16334 * 24564 / 14322/4 *24564/17530
+)  
 
 # OmniScale （MyNetworkLarge）
-batch_size = int(
-    n_gpus * (single_gpu_memory * 1 / 5) * 0.95 * 1.1 * 24564 / 16334 * 24564 / 14322/4 *24564/17530 *24564/2800
-)  
+# batch_size = int(
+#     n_gpus * (single_gpu_memory * 1 / 5) * 0.95 * 1.1 * 24564 / 16334 * 24564 / 14322/4 *24564/17530 *24564/2800
+# )  
 
 
 print(f"batch_size={batch_size}")

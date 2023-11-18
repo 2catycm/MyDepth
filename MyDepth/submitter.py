@@ -1,5 +1,8 @@
 #%%
 from boilerplate import *
+batch_size*=24564/8478*24564/7338*24564/12922*24564/21542
+batch_size=int(batch_size)
+print(f"batch_size={batch_size}")
 #%%
 
 input_picture_directory = system_data_path/'5.跨场景单目深度估计/决赛数据/final_a'
@@ -9,12 +12,16 @@ output_picture_directory.mkdir(exist_ok=True, parents=True)
 # 选择网络结构
 # from models import *
 import models
-model = models.OmniScale(pretrained_weights_path, head=models.MyNetwork_large())
+# model = models.OmniScale(pretrained_weights_path, head=models.MyNetwork_large())
+model = models.ThreeDPT(pretrained_weights_path)
 model = model.to(device)
 
 # 选择模型 state_dict
 # pretrained_head = system_data_path/'runs/复现初赛-添加sam'/'OmniScale_2880.pth'
-pretrained_head = system_data_path/'runs/复现初赛-添加sam'/'OmniScale_4320.pth'
+# pretrained_head = system_data_path/'runs/复现初赛-添加sam'/'OmniScale_4320.pth'
+# pretrained_head = system_data_path/'runs/最激进'/'ThreeDPT_12960.pth' # 训练一轮的结果
+# pretrained_head = system_data_path/'runs/最激进'/'ThreeDPT_13619.pth' # 训练一轮的结果
+pretrained_head = system_data_path/'runs/最激进'/'ThreeDPT_17579.pth' # 训练一轮的结果
 checkpoint = torch.load(pretrained_head)
 model.load_state_dict(checkpoint)
 
@@ -85,7 +92,13 @@ def do_submit_batched(model, input_picture_directory,
     dataloader = torch.utils.data.DataLoader(dataset,
                                                 batch_size=batch_size,
                                                 shuffle=False, 
-                                            collate_fn=dataset.collate_fn)
+                                                # num_workers=1, 
+                                                num_workers=4, 
+                                                # num_workers=8, 
+                                                # num_workers=12, 
+                                                pin_memory=True, 
+                                            collate_fn=dataset.collate_fn, 
+                                            )
     
     # 使用模型进行批量推理
     bar = tqdm.tqdm(dataloader, desc='[Inferencing]')

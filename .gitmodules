@@ -10,3 +10,9 @@
 [submodule "MultiObjectiveOptimization"]
 	path = MultiObjectiveOptimization
 	url = https://github.com/isl-org/MultiObjectiveOptimization.git
+[submodule "dinov2"]
+	path = dinov2
+	url = https://github.com/facebookresearch/dinov2.git
+[submodule "peft"]
+	path = peft
+	url = https://github.com/huggingface/peft.git

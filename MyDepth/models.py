@@ -415,4 +415,6 @@ class OmniScale(nn.Module):
             metric_depth=absolute_depth_map,
             rel_depth=relative_depth_map
         )
+
+
         
