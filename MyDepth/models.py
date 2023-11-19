@@ -59,6 +59,9 @@ from peft import LoraConfig, get_peft_model
 #         return dict(
             
 #         )
+
+from transformers import AutoImageProcessor, DPTForDepthEstimation
+
 class ThreeDPT(nn.Module):
     def __init__(self, pretrained_weights_path):
         super().__init__()
@@ -75,6 +78,8 @@ class ThreeDPT(nn.Module):
         # 正则化的方向：趋于0；要让不同地方scale差不多；矩阵要厉害一点, 趋向于0
         # self.scale = get_omni(pretrained_weights_path)
         self.scale = DPTDepthModel(backbone='vitb_rn50_384') # 与相对深度无关
+        # self.scale = DPTDepthModel(backbone='vit_base_patch14_dinov2.lvd142m') # 与相对深度无关
+        # self.scale = DPTDepthModel(backbone='vit_so400m_patch14_siglip_384') # 与相对深度无关
         # self.scale = get_peft_model(self.scale, 
         #                  LoraConfig(
         #                     r=64,  
@@ -86,6 +91,7 @@ class ThreeDPT(nn.Module):
         #                 )
         # 正则化的方向：趋于0；要让不同地方scale差不多；矩阵要厉害一点。shift是一个补充的东西，本来应该是0附近。
         self.shift = get_omni(pretrained_weights_path)
+        # self.shift = DPTForDepthEstimation.from_pretrained("facebook/dpt-dinov2-base-nyu")
         # self.shift = DPTDepthModel(backbone='vitb_rn50_384')
         # self.shift = get_peft_model(self.shift, 
         #                  LoraConfig(
@@ -111,6 +117,8 @@ class ThreeDPT(nn.Module):
         # self.scale.print_trainable_parameters()
         # self.shift.print_trainable_parameters()
     
+    
+    # 注意这个版本是 “”
     def forward(self, x):
         # print(self.relative(x))
         # _, relative = self.relative(x) 原版模型没有返回特征图出来
@@ -416,5 +424,36 @@ class OmniScale(nn.Module):
             rel_depth=relative_depth_map
         )
 
+
+class WeightEnsemble(nn.Module):
+    def __init__(self, models):
+        super(WeightEnsemble, self).__init__()
+
+        # Freeze the parameters of the input models
+        for model in models:
+            set_requires_grad(model, False)
+
+        # Initialize weights for linear combination
+        self.weights = nn.Parameter(torch.ones(len(models))/len(models))
+
+        # Store the input models
+        # self.models = nn.ModuleList(models)
+        self.models = models # 不需要pytorch保存
+
+    def forward(self, *inputs):
+        # Disable gradient computation for the input models
+        with torch.no_grad():
+            model_outputs = [model(*inputs) for model in self.models]
+        # Linear combination using the weights
+        weighted_sum = sum(w * output for w, output in zip(self.weights, model_outputs))
+        return weighted_sum
+    
+        # 模型多的时候用
+        # # Stack the outputs along a new dimension
+        # stacked_outputs = torch.stack(model_outputs, dim=-1)
+        # # Apply weights using matrix multiplication
+        # weighted_sum = torch.matmul(stacked_outputs, self.weights)
+        # return weighted_sum.squeeze(dim=-1) 
+    
 
         

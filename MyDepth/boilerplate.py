@@ -77,6 +77,7 @@ dataset_path_rgb2, dataset_path_depth2 = (
 )
 # pretrained_weights_path, dataset_path_rgb, dataset_path_depth
 
+
 # %%
 
 # batch_size = 4 # 5G 显存
@@ -90,7 +91,7 @@ n_gpus = 1
 # )  # PEFT?
 # ThreeDPT
 batch_size = int(
-    n_gpus * (single_gpu_memory * 1 / 5) * 0.95 * 1.1 * 24564 / 16334 * 24564 / 14322/4 *24564/17530
+    n_gpus * (single_gpu_memory * 1 / 5) * 0.95 * 1.1 * 24564 / 16334 * 24564 / 14322/4 *24564/17530 *24564/17212
 )  
 
 # OmniScale （MyNetworkLarge）
@@ -121,3 +122,7 @@ def retain_latest_models(running_path, model_name, num_to_retain=3):
     # 删除多余的文件
     for i in range(num_to_delete):
         model_files[i].unlink()
+        
+        
+def tensor_to_numpy(gpu_graph_tensor):
+    return gpu_graph_tensor.detach().cpu().squeeze().numpy()

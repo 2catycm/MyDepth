@@ -1,7 +1,7 @@
 # timm==0.4.12
 torch==2.1.1
 torchvision==0.16.1
-# torchaudio
+torchaudio==2.1.0
 timm==0.6.12
 # https://github.com/Extraltodeus/depthmap2mask/issues/35
 opencv-python==4.8.1.78

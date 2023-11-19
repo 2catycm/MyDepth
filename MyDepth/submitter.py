@@ -1,11 +1,14 @@
 #%%
 from boilerplate import *
-batch_size*=24564/8478*24564/7338*24564/12922*24564/21542
+# batch_size*=24564/8478*24564/7338*24564/12922*24564/21542
+batch_size*=24564/8478*24564/7338*24564/17842
+
 batch_size=int(batch_size)
 print(f"batch_size={batch_size}")
 #%%
 
-input_picture_directory = system_data_path/'5.跨场景单目深度估计/决赛数据/final_a'
+# input_picture_directory = system_data_path/'5.跨场景单目深度估计/决赛数据/final_a'
+input_picture_directory = system_data_path/'5.跨场景单目深度估计/决赛数据/final_b'
 output_picture_directory = project_directory/'result'
 output_picture_directory.mkdir(exist_ok=True, parents=True)
 #%%
@@ -21,7 +24,8 @@ model = model.to(device)
 # pretrained_head = system_data_path/'runs/复现初赛-添加sam'/'OmniScale_4320.pth'
 # pretrained_head = system_data_path/'runs/最激进'/'ThreeDPT_12960.pth' # 训练一轮的结果
 # pretrained_head = system_data_path/'runs/最激进'/'ThreeDPT_13619.pth' # 训练一轮的结果
-pretrained_head = system_data_path/'runs/最激进'/'ThreeDPT_17579.pth' # 训练一轮的结果
+# pretrained_head = system_data_path/'runs/最激进'/'ThreeDPT_17579.pth' # 训练一轮的结果
+pretrained_head = system_data_path/'runs/3DPT稳定版-根据鱼眼做进一步微调'/'ThreeDPT_17480.pth' # 训练一轮的结果
 checkpoint = torch.load(pretrained_head)
 model.load_state_dict(checkpoint)
 
@@ -76,6 +80,7 @@ import numpy as np
 def do_submit_batched(model, input_picture_directory, 
                       output_picture_directory, batch_size=4,
                      device=torch.device('cuda' if torch.cuda.is_available() else 'cpu')):
+    model.eval() # 必须有
     
     transform = transforms.Compose(
     [

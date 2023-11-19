@@ -8,9 +8,12 @@ lr = 1e-5 # OmniScale用
 # lr = 1e-1 # ZoeDepthOmni可用
 # lr = 0.5
 # lr = 0.9
+lr = 0.0002512 # ZoeDepth设置
 
-lr = lr * batch_size/8
+# lr = lr * batch_size/8
+lr = lr * batch_size/16
 print(f"learning_rate={lr}")
+num_epochs = 5
 # %%
 # 定义数据路径
 # exp_id = "复现实验"
@@ -18,11 +21,12 @@ print(f"learning_rate={lr}")
 # exp_id = "复现初赛-添加sam"
 # exp_id = "最激进"
 # exp_id = "最激进-Zoe"
-exp_id = "最激进-OmniScale"
+# exp_id = "最激进-OmniScale"
+exp_id = "最激进-DPT-鱼眼优化"
 # model_name = "ZoeDepth_Omni"
 # model_name = "ThreeDPT"
-# model_name = "ThreeDPT"
-model_name = "OmniScale"
+model_name = "ThreeDPT"
+# model_name = "OmniScale"
 
 # running_path = this_directory/f"./runs/{exp_id}"  # 运行时保存的位置
 running_path = system_data_path / f"./runs/{exp_id}"  # 运行时保存的位置
@@ -62,9 +66,9 @@ train_data_loader = DataLoader(dataset, batch_size=batch_size, shuffle=True)
 import models
 
 # model = models.get_zoe_single_head_with_omni(pretrained_weights_path)
-# model = models.ThreeDPT(pretrained_weights_path)
+model = models.ThreeDPT(pretrained_weights_path)
 # model = models.OmniScale(pretrained_weights_path, head=models.MyNetwork_large())
-model = models.OmniScale(pretrained_weights_path, head=models.ResNet_v2())
+# model = models.OmniScale(pretrained_weights_path, head=models.ResNet_v2())
 model = model.to(device)
 # model = nn.DataParallel(model)
 # model.core.core = torch.compile(model.core.core)
@@ -84,23 +88,39 @@ criterion = ValidatedLoss(basic_loss=CompetitionLoss(), lower=0.1, upper=20)
 criterion = criterion.to(device)
 # criterion = nn.DataParallel(criterion)
 import sam.sam as sam
+from sam.example.utility.bypass_bn import disable_running_stats, enable_running_stats
 
 # optimizer = optim.AdamW(model.parameters(), lr=lr)
-# base_optimizer = torch.optim.AdamW
-base_optimizer = torch.optim.SGD
-# optimizer = sam.SAM(model.parameters(), base_optimizer, lr=0.001, momentum=0.9)
-optimizer = sam.SAM(model.parameters(), base_optimizer, lr=lr, momentum=0.9)
+base_optimizer = torch.optim.AdamW
+# base_optimizer = torch.optim.SGD
+optimizer = sam.SAM(model.parameters(), base_optimizer, 
+                    lr=lr, 
+                    # momentum=0.9, 
+                    weight_decay=0.01, 
+                    # adaptive=False, rho=0.05)
+                    adaptive=True, rho=2.0)
 from torch.optim.lr_scheduler  import ExponentialLR, MultiStepLR, CosineAnnealingWarmRestarts
+import torch.optim as optim
 # scheduler1 = ExponentialLR(optimizer, gamma=0.9)
 # scheduler2 = MultiStepLR(optimizer, milestones=[30,80], gamma=0.1)
-scheduler = CosineAnnealingWarmRestarts(optimizer, T_0=10, T_mult=2, eta_min=1e-5)
+# scheduler = CosineAnnealingWarmRestarts(optimizer.base_optimizer, T_0=10, T_mult=2, eta_min=1e-5)
+
+lrs = [l['lr'] for l in optimizer.base_optimizer.param_groups]
+scheduler = optim.lr_scheduler.OneCycleLR(optimizer.base_optimizer, 
+                                          lrs, epochs=num_epochs, 
+                                          steps_per_epoch=len(train_data_loader),
+                                        cycle_momentum=True,
+                                        base_momentum=0.85, max_momentum=0.95, 
+                                        div_factor=1, 
+                                        final_div_factor=10000, 
+                                        pct_start=0.7, 
+                                        three_phase=False)
 # %%
 # 训练网络
 # def post_process(output):
 
 
 import tqdm
-
 bar = tqdm.tqdm(range(num_epochs), colour="green", leave=False, position=0)
 for epoch in bar:
     inner_bar = tqdm.tqdm(train_data_loader, colour="yellow", leave=False, position=1)
@@ -114,12 +134,12 @@ for epoch in bar:
         # print(images.shape, depths_gt.shape)
 
         b, c, h, w = images.size()
-        output = model(images)
-
-        pred_depths = output["metric_depth"].squeeze()
-
+        
         # SAM
         # first forward-backward pass
+        enable_running_stats(model)
+        output = model(images)
+        pred_depths = output["metric_depth"].squeeze()
         loss = criterion(
             # depths_gt, pred_depths
             input=pred_depths, target=depths_gt # 必须pred在前，true灾后
@@ -140,6 +160,7 @@ for epoch in bar:
         writer.add_scalar(f"loss_{exp_id}", epoch_loss_sum / (i_log + 1), epoch * len(train_data_loader) + i_log)
 
         # second forward-backward pass
+        disable_running_stats(model) 
         criterion(
             input=model(images)["metric_depth"].squeeze(), target=depths_gt
         ).backward()  # make sure to do a full forward pass
@@ -172,7 +193,7 @@ for epoch in bar:
 
 
         i_log += 1
-        scheduler.step()
+        scheduler.step() # ZoeDepth也是写在batch里面的，跟随它。
         # writer.add_scalar(f"learning_rate_{exp_id}", epoch_loss_sum / (i_log + 1), epoch * len(train_data_loader) + i_log)
 
     # if epoch%save_steps == 0:
