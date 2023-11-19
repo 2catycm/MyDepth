@@ -21,7 +21,8 @@ model_zoe_n = torch.hub.load("./ZoeDepth",
                              source="local",
                              pretrained=True)
 
-device = torch.device('cuda:0' if torch.cuda.is_available() else 'cpu')
+#device = torch.device('cuda:0' if torch.cuda.is_available() else 'cpu')
+device = torch.device('cpu')
 zoe = model_zoe_n.to(device)
 zoe
 #%%
@@ -42,7 +43,6 @@ def Convert_ONNX(model, input_size, path):
     # Let's create a dummy input tensor
     dummy_input = torch.randn(1, *input_size, requires_grad=True)
     # dummy_input = np.random.randn(1, *input_size)
-
     # Export the model
     torch.onnx.export(model,         # model being run
          dummy_input,       # model input (or a tuple for multiple inputs)
@@ -69,7 +69,11 @@ def check_onnx(path):
 
 # path = "myFirstModel.pth"
 # model.load_state_dict(torch.load(path))
+
 Convert_ONNX(zoe, (3, 224, 224), "ZoeD_N.onnx")
 onnx_model = check_onnx("ZoeD_N.onnx")
 
+# tensor_x = torch.rand((3, 224, 224), dtype=torch.float32)
+# export_output = torch.onnx.dynamo_export(zoe, tensor_x)
+# export_output.save("ZoeD_N.onnx")
 # %%
