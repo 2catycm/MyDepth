@@ -22,14 +22,16 @@ num_epochs = 5
 # exp_id = "最激进"
 # exp_id = "最激进-Zoe"
 # exp_id = "最激进-OmniScale"
-exp_id = "最激进-DPT-鱼眼优化"
+# exp_id = "最激进-DPT-鱼眼优化"
+exp_id = "output" # 决赛复现格式要求
 # model_name = "ZoeDepth_Omni"
 # model_name = "ThreeDPT"
 model_name = "ThreeDPT"
 # model_name = "OmniScale"
 
 # running_path = this_directory/f"./runs/{exp_id}"  # 运行时保存的位置
-running_path = system_data_path / f"./runs/{exp_id}"  # 运行时保存的位置
+# running_path = system_data_path / f"./runs/{exp_id}"  # 运行时保存的位置
+running_path = this_directory / f"/project//{exp_id}"  # 运行时保存的位置
 if not running_path.is_symlink():  # 如果是软连接，也是存在
     running_path.mkdir(parents=True, exist_ok=True)
 

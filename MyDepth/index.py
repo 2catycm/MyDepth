@@ -8,11 +8,17 @@ import numpy as np
 import cv2
 from PIL import Image
 from torchvision import transforms
-
+from boilerplate import *
+def load_into_model(path, model):
+    checkpoint = torch.load(path)
+    model.load_state_dict(checkpoint)
 def create_model():
     # path needs to be changed!!!
-    path = "/home/ysn/Desktop/MyDepth/omnidata/omnidata_tools/torch/omnidata_dpt_depth_v2.ckpt"
-    model = models.ThreeDPT(path).to(device)
+    # path = "/home/ysn/Desktop/MyDepth/omnidata/omnidata_tools/torch/omnidata_dpt_depth_v2.ckpt"
+    model = models.ThreeDPT(pretrained_weights_path)
+    model = model.to(device)
+    load_into_model(this_directory/'project/best_model', model)
+    
     model.relative = model.relative.merge_and_unload()
     tensor_x = torch.rand((1, 3, 224, 224), dtype=torch.float32)
     export_output = torch.onnx.dynamo_export(model, tensor_x)
