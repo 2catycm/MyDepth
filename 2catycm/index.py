@@ -17,7 +17,7 @@ def create_model():
     # path = "/home/ysn/Desktop/MyDepth/omnidata/omnidata_tools/torch/omnidata_dpt_depth_v2.ckpt"
     model = models.ThreeDPT(pretrained_weights_path)
     model = model.to(device)
-    load_into_model(this_directory/'project/best_model', model)
+    load_into_model(this_directory/'project/best_model/', model)
     
     model.relative = model.relative.merge_and_unload()
     tensor_x = torch.rand((1, 3, 224, 224), dtype=torch.float32)
