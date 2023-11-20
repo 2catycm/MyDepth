@@ -8,7 +8,7 @@ project_directory = this_directory.parent
 import sys
 
 sys.path.append((project_directory / "omnidata/omnidata_tools/torch").as_posix())
-sys.path.append((project_directory / "ZoeDepth").as_posix())
+# sys.path.append((project_directory / "ZoeDepth").as_posix())
 sys.path.append((project_directory).as_posix())
 # %%
 import ssl

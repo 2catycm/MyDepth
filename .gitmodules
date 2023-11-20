@@ -5,3 +5,6 @@
 	path = omnidata
 	url = https://gitee.com/yecanming/omnidata.git
 
+[submodule "ZoeDepth"]
+	path = ZoeDepth
+	url = https://github.com/2catycm/ZoeDepth.git
