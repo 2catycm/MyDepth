@@ -41,7 +41,8 @@ def seed_torch(seed):
 seed = 1
 seed_torch(seed)
 #%%
-system_data_path = Path("/data/projects/depth").resolve()
+# system_data_path = Path("/data/projects/depth").resolve()
+system_data_path = Path("./official_train").resolve()
 
 pretrained_weights_path = (
     project_directory
@@ -49,13 +50,15 @@ pretrained_weights_path = (
 )
 
 
-dataset_directory = system_data_path / "5.跨场景单目深度估计/训练集/replica_fullplus/"
+# dataset_directory = system_data_path / "5.跨场景单目深度估计/训练集/replica_fullplus/"
+dataset_directory = system_data_path / "replica_fullplus/"
 dataset_path_rgb1, dataset_path_depth1 = (
     dataset_directory / "rgb",
     dataset_directory / "depth_zbuffer",
 )
 
-dataset_directory = system_data_path / "5.跨场景单目深度估计/训练集/taskonomy/"
+# dataset_directory = system_data_path / "5.跨场景单目深度估计/训练集/taskonomy/"
+dataset_directory = system_data_path / "taskonomy/"
 dataset_path_rgb2, dataset_path_depth2 = (
     dataset_directory / "rgbs",
     dataset_directory / "depths",

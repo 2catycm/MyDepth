@@ -9,7 +9,8 @@ print(f"batch_size={batch_size}")
 #%%
 
 # input_picture_directory = system_data_path/'5.跨场景单目深度估计/决赛数据/final_a'
-input_picture_directory = system_data_path/'5.跨场景单目深度估计/决赛数据/final_b'
+# input_picture_directory = system_data_path/'5.跨场景单目深度估计/决赛数据/final_b'
+input_picture_directory = system_data_path.parent/'official_b 
 output_picture_directory = project_directory/'result'
 output_picture_directory.mkdir(exist_ok=True, parents=True)
 #%%
