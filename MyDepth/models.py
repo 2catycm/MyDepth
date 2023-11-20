@@ -425,13 +425,13 @@ class OmniScale(nn.Module):
         )
 
 
-class WeightEnsemble(nn.Module):
+class WeightedEnsemble(nn.Module):
     def __init__(self, models):
-        super(WeightEnsemble, self).__init__()
+        super().__init__()
 
         # Freeze the parameters of the input models
         for model in models:
-            set_requires_grad(model, False)
+            set_require_grad(model, False)
 
         # Initialize weights for linear combination
         self.weights = nn.Parameter(torch.ones(len(models))/len(models))
@@ -440,13 +440,15 @@ class WeightEnsemble(nn.Module):
         # self.models = nn.ModuleList(models)
         self.models = models # 不需要pytorch保存
 
-    def forward(self, *inputs):
+    def forward(self, inputs):
         # Disable gradient computation for the input models
         with torch.no_grad():
-            model_outputs = [model(*inputs) for model in self.models]
+            model_outputs = [model(inputs)['metric_depth'] for model in self.models]
         # Linear combination using the weights
         weighted_sum = sum(w * output for w, output in zip(self.weights, model_outputs))
-        return weighted_sum
+        return dict(
+            metric_depth=weighted_sum
+        )
     
         # 模型多的时候用
         # # Stack the outputs along a new dimension

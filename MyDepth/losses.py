@@ -24,6 +24,7 @@ class ValidatedLoss(nn.Module):
         is_valid = (target > self.lower) & (target < self.upper)
         valid_input = input[is_valid]
         valid_target = target[is_valid]
+        # print(len(valid_input.reshape(-1)))
         return self.basic_loss(valid_input, valid_target)
 class REL(nn.Module):
     """Absolute Relative Error, REL Loss"""
@@ -135,3 +136,62 @@ if __name__ == "__main__":
     loss.backward()
     print(loss)
 #%%
+
+
+import torch
+import numpy as np
+def compute(gt, pred):
+        """
+        Compute depth metrics
+
+        Parameters
+        ----------
+        gt : torch.Tensor
+            Ground-truth depth maps [H,W]
+        pred : torch.Tensor
+            Predicted depth map [H,W]
+        Returns
+        -------
+        metrics : torch.Tensor
+            Depth metrics
+        """
+        if isinstance(gt, np.ndarray):
+            gt = torch.from_numpy(gt)
+        if isinstance(pred, np.ndarray):
+            pred = torch.from_numpy(pred)
+        # use_gt_scale=True
+        use_gt_scale=False
+        min_depth = 0.1
+        max_depth = 20
+        # For each batch sample
+        metrics = []
+        # Squeeze GT and PRED
+        gt, pred = torch.squeeze(gt), torch.squeeze(pred)
+
+        # Keep valid pixels (min/max depth and crop)
+        valid = (gt > min_depth) & (gt < max_depth)
+    
+        # Keep only valid pixels
+        gt, pred = gt[valid], pred[valid]
+        # GT median scaling if needed
+        if use_gt_scale:
+            pred = pred * torch.median(gt) / torch.median(pred)
+        # Clamp PRED depth values to min/max values
+        pred = pred.clamp(min_depth, max_depth)
+
+        # Calculate depth metrics
+
+        diff_i = gt - pred
+        mae = torch.abs(diff_i).mean()
+        abs_rel = torch.mean(torch.abs(diff_i) / gt)
+        rmse = torch.sqrt(torch.mean(diff_i ** 2))
+        
+        log_diff_i = torch.log(gt) - torch.log(pred)
+        si_rmse = torch.sqrt(torch.mean(log_diff_i ** 2) - torch.mean(log_diff_i)** 2)
+        log10_diff_i = torch.log10(pred) - torch.log10(gt)
+        avg_log10 = torch.abs(log10_diff_i).mean()
+
+        metrics.append([abs_rel,mae,rmse,si_rmse,avg_log10])
+
+        # Return metrics
+        return torch.tensor(metrics, dtype=gt.dtype)

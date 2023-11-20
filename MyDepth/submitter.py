@@ -1,7 +1,8 @@
 #%%
 from boilerplate import *
 # batch_size*=24564/8478*24564/7338*24564/12922*24564/21542
-batch_size*=24564/8478*24564/7338*24564/17842
+# batch_size*=24564/8478*24564/7338*24564/17842/3
+batch_size*=24564/8478*24564/7338*24564/17842/3*24564/12160*0.8
 
 batch_size=int(batch_size)
 print(f"batch_size={batch_size}")
@@ -16,7 +17,31 @@ output_picture_directory.mkdir(exist_ok=True, parents=True)
 # from models import *
 import models
 # model = models.OmniScale(pretrained_weights_path, head=models.MyNetwork_large())
-model = models.ThreeDPT(pretrained_weights_path)
+# model = models.ThreeDPT(pretrained_weights_path)
+# model = model.to(device)
+
+def load_into_model(path, model):
+    checkpoint = torch.load(path)
+    model.load_state_dict(checkpoint)
+# model1 = models.get_zoe_single_head_with_omni(pretrained_weights_path)
+
+model1 = models.ThreeDPT(pretrained_weights_path)
+# load_into_model(system_data_path/'runs/最激进-DPT-鱼眼优化'/'ThreeDPT_41480.pth', model1)
+# load_into_model(system_data_path/'runs/最激进-DPT-鱼眼优化'/'ThreeDPT_42920.pth', model1)
+load_into_model(system_data_path/'runs/最激进-DPT-鱼眼优化'/'ThreeDPT_44000.pth', model1)
+
+# model2 = models.ThreeDPT(pretrained_weights_path)
+# load_into_model(system_data_path/'runs/最激进'/'ThreeDPT_17579.pth', model2)
+
+# model3 = models.ThreeDPT(pretrained_weights_path)
+# load_into_model(system_data_path/'runs/3DPT稳定版-根据鱼眼做进一步微调'/'ThreeDPT_17480.pth', model3)
+# model_to_weight = [model1, model2, model3]
+# for model in model_to_weight:
+#     model = model.to(device)
+
+# model  = models.WeightedEnsemble(model_to_weight)
+model = model1
+
 model = model.to(device)
 
 # 选择模型 state_dict
@@ -25,9 +50,9 @@ model = model.to(device)
 # pretrained_head = system_data_path/'runs/最激进'/'ThreeDPT_12960.pth' # 训练一轮的结果
 # pretrained_head = system_data_path/'runs/最激进'/'ThreeDPT_13619.pth' # 训练一轮的结果
 # pretrained_head = system_data_path/'runs/最激进'/'ThreeDPT_17579.pth' # 训练一轮的结果
-pretrained_head = system_data_path/'runs/3DPT稳定版-根据鱼眼做进一步微调'/'ThreeDPT_17480.pth' # 训练一轮的结果
-checkpoint = torch.load(pretrained_head)
-model.load_state_dict(checkpoint)
+# pretrained_head = system_data_path/'runs/3DPT稳定版-根据鱼眼做进一步微调'/'ThreeDPT_17480.pth' # 训练一轮的结果
+# checkpoint = torch.load(pretrained_head)
+# model.load_state_dict(checkpoint)
 
 #%%
 import zipfile

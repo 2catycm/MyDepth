@@ -11,6 +11,8 @@ lr = 3e-4 # ThreeDPT 可以下降， 很快到0.2
 # lr = 1e-1 # ZoeDepthOmni可用
 # lr = 0.5
 # lr = 0.9
+batch_size *=24564/8480
+batch_size = int(batch_size)
 
 lr = lr * batch_size/8
 print(f"learning_rate={lr}")
@@ -21,9 +23,11 @@ print(f"learning_rate={lr}")
 # exp_id = "复现初赛"
 # exp_id = "3DPT稳定版"
 # exp_id = "3DPT稳定版+根据鱼眼做进一步微调"
+exp_id = "集成模型+根据AB榜模型差距随机鱼眼"
 # model_name = "ZoeDepth_Omni"
 # model_name = "ThreeDPT"
-model_name = "ThreeDPT"
+# model_name = "ThreeDPT"
+model_name = "WeightedEmsemble"
 # model_name = "OmniScale"
 
 # running_path = this_directory/f"./runs/{exp_id}"  # 运行时保存的位置
@@ -52,35 +56,62 @@ from torch.utils.data import DataLoader, ConcatDataset
 
 model_require_input_image_size = [384, 512]
 # model_require_input_image_size = [384, 384]
-
-dataset1 = CustomDataset(dataset_path_rgb1, dataset_path_depth1, image_size=model_require_input_image_size)
-dataset2 = CustomDataset(dataset_path_rgb2, dataset_path_depth2, image_size=model_require_input_image_size)
-dataset = dataset2  # taskonomy
-# dataset = ConcatDataset([dataset1, dataset2])
+a = 0.40702910018856203
+b = 0.4497577257358659
+do_fish_transform_prob = a/(a+b)
+# do_fish_transform_prob = 1
+print("do_fish_transform_prob=", do_fish_transform_prob)
+dataset1 = CustomDataset(dataset_path_rgb1, dataset_path_depth1, 
+                         image_size=model_require_input_image_size, 
+                         do_fisheye_transform=do_fish_transform_prob)
+dataset2 = CustomDataset(dataset_path_rgb2, dataset_path_depth2, 
+                         image_size=model_require_input_image_size, 
+                         do_fisheye_transform=do_fish_transform_prob)
+# dataset = dataset2  # taskonomy
+dataset = ConcatDataset([dataset1, dataset2])
 train_data_loader = DataLoader(dataset, batch_size=batch_size, shuffle=True)
 
 # %%
 import models
 
 # model = models.get_zoe_single_head_with_omni(pretrained_weights_path)
-model = models.ThreeDPT(pretrained_weights_path)
+# model = models.ThreeDPT(pretrained_weights_path)
 # model = models.OmniScale(pretrained_weights_path, head=models.MyNetwork_large())
+def load_into_model(path, model):
+    checkpoint = torch.load(path)
+    model.load_state_dict(checkpoint)
+# model1 = models.get_zoe_single_head_with_omni(pretrained_weights_path)
+
+model1 = models.ThreeDPT(pretrained_weights_path)
+# load_into_model(system_data_path/'runs/最激进-DPT-鱼眼优化'/'ThreeDPT_41480.pth', model1)
+load_into_model(system_data_path/'runs/最激进-DPT-鱼眼优化'/'ThreeDPT_42920.pth', model1)
+
+model2 = models.ThreeDPT(pretrained_weights_path)
+load_into_model(system_data_path/'runs/最激进'/'ThreeDPT_17579.pth', model2)
+
+model3 = models.ThreeDPT(pretrained_weights_path)
+load_into_model(system_data_path/'runs/3DPT稳定版-根据鱼眼做进一步微调'/'ThreeDPT_17480.pth', model3)
+model_to_weight = [model1, model2, model3]
+for model in model_to_weight:
+    model = model.to(device)
+
+model  = models.WeightedEnsemble(model_to_weight)
+
 model = model.to(device)
+
 # model = nn.DataParallel(model)
 # model.core.core = torch.compile(model.core.core)
 
 # %%
-# checkpoint = torch.load("/data/projects/depth/runs/复现实验" + "/ZoeDepth_Omni_660.pth")
-# model.load_state_dict(checkpoint)
-# model = nn.DataParallel(model)
+
 # %%
 # from
 # criterion = nn.L1Loss()
 # criterion = nn.MSELoss()
 from losses import ValidatedLoss, CompetitionLoss, REL
 
-# criterion = ValidatedLoss(basic_loss=CompetitionLoss(), lower=0.1, upper=20)
-criterion = ValidatedLoss(basic_loss=REL(), lower=0.1, upper=20)
+criterion = ValidatedLoss(basic_loss=CompetitionLoss(), lower=0.1, upper=20)
+# criterion = ValidatedLoss(basic_loss=REL(), lower=0.1, upper=20)
 criterion = criterion.to(device)
 # criterion = nn.DataParallel(criterion)
 # import sam.sam as sam
@@ -93,7 +124,7 @@ optimizer = optim.AdamW(model.parameters(), lr=lr)
 from torch.optim.lr_scheduler  import ExponentialLR, MultiStepLR, CosineAnnealingWarmRestarts
 # scheduler1 = ExponentialLR(optimizer, gamma=0.9)
 # scheduler2 = MultiStepLR(optimizer, milestones=[30,80], gamma=0.1)
-scheduler = CosineAnnealingWarmRestarts(optimizer, T_0=10, T_mult=2, eta_min=1e-5)
+# scheduler = CosineAnnealingWarmRestarts(optimizer, T_0=10, T_mult=2, eta_min=1e-5)
 # %%
 # 训练网络
 # def post_process(output):
@@ -168,10 +199,13 @@ for epoch in bar:
             from scipy import stats
             print(stats.describe(pred_depths[0].detach().cpu().squeeze().reshape(-1).numpy()))
             print(stats.describe(depths_gt[0].detach().cpu().squeeze().reshape(-1).numpy()))
+            
+            # weighted实验
+            print(model.weights)
 
 
         i_log += 1
-        scheduler.step()
+        # scheduler.step()
         # writer.add_scalar(f"learning_rate_{exp_id}", epoch_loss_sum / (i_log + 1), epoch * len(train_data_loader) + i_log)
 
     # if epoch%save_steps == 0:
